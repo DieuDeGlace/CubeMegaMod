@@ -68,7 +68,7 @@ static void UpdateGemTraderShop(cube::Game* game, std::vector<std::vector<cube::
 	{
 		// Set the random seed to the id of the creature to generate the same items for the same creature every time.
 		cube::Item item = cube::Item(23, std::rand() % 7);
-		item.region = IntVector2(std::rand(), std::rand());
+		item.region = game->GetPlayer()->entity_data.current_region;
 		item.modifier = std::rand();
 		item.rarity = 10;
 		item.formula_category = std::rand();
