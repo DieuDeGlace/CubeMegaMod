@@ -49,13 +49,55 @@ static void UpdateGemTraderShop(cube::Game* game, std::vector<std::vector<cube::
 		}
 	}
 
-	// Add 3 potions of rarity 1 - 4
-	for (int i = 0; i < 4; i++)
+	
+	for (int i = 0; i < 1; i++)
 	{
-		cube::Item item = cube::Item(1, 1);
-		item.rarity = i;
+		cube::Item item = cube::Item(11, 32);
+		item.rarity = 1;
 
-		int count = 3;
+		int count =  1 + std::rand() % 4;
+		int sold = cube::Helper::CWGetItemsSold(game->world, item, id);
+
+		if (sold < count)
+		{
+			itemVector->at(0).push_back(cube::ItemStack(count - sold, item));
+		}
+	}
+	
+	for (int i = 0; i < 1; i++)
+	{
+		cube::Item item = cube::Item(11, 33);
+		item.rarity = 2;
+
+		int count =  1 + std::rand() % 4;
+		int sold = cube::Helper::CWGetItemsSold(game->world, item, id);
+
+		if (sold < count)
+		{
+			itemVector->at(0).push_back(cube::ItemStack(count - sold, item));
+		}
+	}
+	
+	for (int i = 0; i < 1; i++)
+	{
+		cube::Item item = cube::Item(11, 34);
+		item.rarity = 3;
+
+		int count =  1 + std::rand() % 4;
+		int sold = cube::Helper::CWGetItemsSold(game->world, item, id);
+
+		if (sold < count)
+		{
+			itemVector->at(0).push_back(cube::ItemStack(count - sold, item));
+		}
+	}
+	
+	for (int i = 0; i < 1; i++)
+	{
+		cube::Item item = cube::Item(11, 35);
+		item.rarity = 4;
+
+		int count =  1 + std::rand() % 4;
 		int sold = cube::Helper::CWGetItemsSold(game->world, item, id);
 
 		if (sold < count)
