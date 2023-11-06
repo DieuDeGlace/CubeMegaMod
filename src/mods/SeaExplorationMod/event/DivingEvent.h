@@ -7,8 +7,8 @@
 
 // Fish spawning constants
 const static double FISH_SPAWN_INTERVAL = 1;
-const static auto FISH_SPAWN_AMOUNT = 4;
-const static auto MAX_FISH_COUNT = 100;
+const static auto FISH_SPAWN_AMOUNT = 1;
+const static auto MAX_FISH_COUNT = 3;
 
 // Treasure spawning constants
 const static double TREASURE_SPAWN_INTERVAL = 60;
