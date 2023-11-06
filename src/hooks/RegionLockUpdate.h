@@ -11,17 +11,9 @@ extern "C" int OnGetEffectiveItemRarity(cube::Item * item, int distance) {
 	return item->rarity;
 	/* remove region lock
 	if (item->category == 2)
-	{
-		return item->rarity;
-	}
+{
+	return item->rarity;
 
-	int plus = item->IsPlusItem() ? 1 : 0;
-	long long calc = (long long)item->rarity - (long long)((2 - plus) * distance);
-	if (calc < 0)
-	{
-		return -1;
-	}
-	return (int)calc;*/
 }
 
 __attribute__((naked)) void ASMEffectiveItemRarity() {
