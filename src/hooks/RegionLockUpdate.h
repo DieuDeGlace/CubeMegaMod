@@ -8,12 +8,22 @@
 
 // Todo make function for cubemod.
 extern "C" int OnGetEffectiveItemRarity(cube::Item * item, int distance) {
-	return item->rarity;
-	/* remove region lock
 	if (item->category == 2)
-{
-	return item->rarity;
+	{
+		return item->rarity;
+	}
 
+	int plus = item->IsPlusItem() ? 1 : 0;
+	int calc = item->rarity - distance;
+	if (item->IsPlusItem() && distance > 0 && calc < 4) 
+	{
+		calc += 1;
+	}
+	if (calc < 0)
+	{
+		return -1;
+	}
+	return (int)calc;
 }
 
 __attribute__((naked)) void ASMEffectiveItemRarity() {
