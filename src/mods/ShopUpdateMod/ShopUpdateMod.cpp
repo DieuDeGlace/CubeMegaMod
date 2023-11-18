@@ -112,7 +112,7 @@ static void UpdateGemTraderShop(cube::Game* game, std::vector<std::vector<cube::
 		cube::Item item = cube::Item(23, std::rand() % 7);
 		item.region = game->GetPlayer()->entity_data.current_region;
 		item.modifier = std::rand();
-		item.rarity = 10;
+		item.rarity = 0;
 		item.formula_category = std::rand();
 
 		if (!cube::Helper::CWGetItemsSold(game->world, item, id))
