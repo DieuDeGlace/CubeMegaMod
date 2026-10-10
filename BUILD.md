@@ -4,7 +4,7 @@ This fork contains edits made by DieuDeGlace with OpenAI ChatGPT/Codex assistanc
 
 ## Changes
 
-Ambient aquatic mobs spawn near loaded water even while the player is on land, from stable chunk sites with a population cap of 30, bounded activation, range cleanup and idle swimming. Small fish are passive; aquatic predators and bosses are hostile. Aquatic boss selection uses aquatic races. Lakes choose hostile crab, spitter or slime groups with a matching boss and controlled accumulation. No nonexistent ice-spitter race was added. Existing XP-compatibility and region-unlock edits are included. Native rarity remains separate from PyroProgression numeric level scaling.
+Ambient aquatic mobs spawn near loaded water even while the player is on land, from stable chunk sites with a population cap of 18, bounded activation, range cleanup and idle swimming. Small fish are passive; aquatic predators and bosses are hostile. Aquatic boss selection uses aquatic races. Lakes choose hostile crab, spitter or slime groups with a matching boss and controlled accumulation. No nonexistent ice-spitter race was added. Existing XP-compatibility and region-unlock edits are included. Native rarity remains separate from PyroProgression numeric level scaling.
 
 ## Build on Windows x64
 
@@ -21,6 +21,8 @@ Output: `build/CubeMegaMod-XPC-RU1-AmbientWater.dll`. Close Steam Cube World and
 
 The source test `tests/water_spawn_search.cpp` can be compiled with `clang-cl /std:c++14 /EHsc tests\water_spawn_search.cpp /Fewater_spawn_search.exe` and then run. Compile and source-level tests do not establish every gameplay or multiplayer case.
 
-Water schools use a stable 4x4 candidate lattice per loaded chunk and a world-seeded species. One school of 2–3 is activated per water chunk (up to four per one-second update). Empty occupied sites repopulate after ten continuous minutes empty, using the same anchor and species; chunk unload retains the remaining cooldown within the current session. Unloaded world areas are not generated. Underwater bosses retain their separate random roll. Lake shoreline encounters retain their fixed dominant species and matching boss. Cooldowns reset when leaving the world or restarting the game.
+Water schools use a stable 4x4 candidate lattice per loaded chunk and a world-seeded species. One school of 2â€“3 is activated per water chunk (up to four per one-second update). Empty occupied sites repopulate after ten continuous minutes empty, using the same anchor and species; cleared sites retain their remaining cooldown across chunk unload within the current session. Unloaded world areas are not generated. Underwater bosses retain their separate random roll. Lake shoreline encounters retain their fixed dominant species and matching boss. Cooldowns reset when leaving the world or restarting the game.
 
 Sea crabs and mermaids are ocean-only, including sea-crab boss selection. Normal lake crab encounters remain. Polar gnoll (an old incorrect aquatic factory entry) is excluded from ambient schools.
+
+Aquatic density/residency update: 18 custom creatures maximum; inland sites use one in three chunks and oceans one in two, with school anchors at least 128/96 blocks apart respectively. Living fish retire when their origin/current chunk unloads, without an extra distance limit. Living populations can populate again on chunk reload; cleared sites retain a ten-minute session cooldown. Neutral fish retain passive behavior without an extra ally flag. Native terrain-aware water lookup and bounded depth recovery replace zero-sea-level assumptions. Movement and predator damage still require in-game verification after installing this build.

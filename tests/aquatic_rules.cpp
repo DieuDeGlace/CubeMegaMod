@@ -17,11 +17,15 @@ int main(){
  assert(!SwimPathClear(a,b,[&](SwimPoint p){return std::abs(p.x-(a.x+4))>.3;}));
  assert(!SwimPathClear(a,{a.x+30,a.y,a.z},[](SwimPoint){return true;}));
  assert(!SwimPathClear(a,b,[&](SwimPoint p){return p.z<26;}));
- assert(WaterPopulationCap==30&&WaterSchoolMax==3);
+ assert(WaterPopulationCap==18&&WaterSchoolMax==3);
  assert(WaterWithinRadius(-1000000,-1000000,-1000000,-1000000,192));
  assert(!WaterWithinRadius(-999000,-1000000,-1000000,-1000000,192));
  assert(WaterWithinRadius(192,0,0,0,192)&&!WaterWithinRadius(193,0,0,0,192));
  assert(WaterEntityLifecycle(true,true,false,true,false)==WaterEntityAction::Retire);
  assert(!WaterPopulationCanSpawn(60,0,100,0));
+ SwimPoint recovered{};
+ assert(SwimRecoverDepth({0,0,5},&recovered,[](SwimPoint){return true;},[](SwimPoint p){return p.z<=1;}));assert(recovered.z==1);
+ assert(!SwimRecoverDepth({0,0,5},&recovered,[](SwimPoint p){return p.z>2;},[](SwimPoint p){return p.z<=1;}));
+ assert(!SwimRecoverDepth({0,0,50},&recovered,[](SwimPoint){return true;},[](SwimPoint p){return p.z<=1;}));
  puts("Species temperament, aquatic-only hostile bosses, smooth bounded movement, wall/surface/unloaded-path rejection and population lifecycle: PASS");
 }

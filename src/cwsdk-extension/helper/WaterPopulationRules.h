@@ -1,6 +1,6 @@
 #pragma once
 #include <cstdint>
-constexpr int WaterPopulationCap = 30;
+constexpr int WaterPopulationCap = 18;
 constexpr int WaterSchoolMax = 3;
 constexpr int WaterSpawnRadius = 192;
 constexpr int WaterRetireRadius = 256;
@@ -61,4 +61,8 @@ inline int WaterSiteSpecies(unsigned int hash,bool ocean){
  constexpr int sea[]={0,1,2,3,4,6,7,8,9,10,11,12};
  constexpr int inland[]={2,3,4,7,8,9,10,11,12};
  return ocean?sea[(hash>>8)%12]:inland[(hash>>8)%9];
+}
+
+inline bool WaterSiteEligible(int x,int y,int seed,bool ocean){
+ long long n=(long long)x+y+seed;int period=ocean?2:3;return (n%period+period)%period==0;
 }

@@ -261,7 +261,7 @@ cube::Creature* cube::CreatureFactory::SpawnFish(const LongVector3& position, co
 
 	if (creature != nullptr)
 	{
-		if(AquaticPassive(ENTITY_TYPES[entityType]))creature->entity_data.appearance.flags2 |= 1 << (int)cube::Enums::AppearanceModifiers::IsFriendly;
+		if(AquaticPassive(ENTITY_TYPES[entityType]))creature->entity_data.appearance.flags2 &= ~(1 << (int)cube::Enums::AppearanceModifiers::IsFriendly);
 		creature->entity_data.HP = creature->GetMaxHP();
 	}
 

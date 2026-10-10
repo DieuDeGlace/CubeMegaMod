@@ -22,7 +22,7 @@ Features of this mod include sea exploration, lore interactions and combat impro
 **NOTE THAT EVERY SEPERATE FEATURE CAN BE DISABLED WITH THE CHAT**
 
 ### Sea exploration [ID: 1]
-Loaded water chunks populate fixed schools of 2-3 fish, capped at 30 custom aquatic/lake mobs nearby. Empty sites repopulate after ten minutes while loaded. The player does not need to be underwater. Going underwater usually drains stamina.
+Loaded water chunks populate fixed schools of 2-3 fish, capped at 18 custom aquatic/lake mobs nearby. Cleared sites repopulate after ten minutes; living schools can reappear on chunk reload. The player does not need to be underwater. Going underwater usually drains stamina.
 This is still the case, however now 10 gold is automatically used to gain the underwater breathing ability for 10 seconds.
 On top of that, underwater exploring is rewarded with random chests spawning every 60 seconds.
 The chest types are:
@@ -253,3 +253,5 @@ Delivering that gives a larger reward than the value of said materials.
 
 ## Final words
 Special thanks **Chris** for his work for the modding community. **TheBagel3(Youtube, Discord, Twitch)** is the one to build on for support, ideas and enthousiasm. He makes awesome videos about the mods, is a nice person and lots of love for him ❤️. Also thanks **Timothy(GrayShadoz - Youtube)**, **Raxiti(Reddit)**, **kuba.dlouhej(Discord)** for testing and giving feedback on the mod.
+
+Aquatic density/residency update: 18 custom creatures maximum; inland sites use one in three chunks and oceans one in two, with school anchors at least 128/96 blocks apart respectively. Living fish retire when their origin/current chunk unloads, without an extra distance limit. Living populations can populate again on chunk reload; cleared sites retain a ten-minute session cooldown. Neutral fish retain passive behavior without an extra ally flag. Native terrain-aware water lookup and bounded depth recovery replace zero-sea-level assumptions. Movement and predator damage still require in-game verification after installing this build.

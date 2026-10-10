@@ -1,5 +1,6 @@
 #include "Helper.h"
 #include "WaterSpawnSearch.h"
+#include "NativeWaterBlock.h"
 #include "common/math.h"
 
 #define DEBUG_HELPER 0
@@ -25,15 +26,15 @@ bool cube::Helper::FindWaterColumnSpawnPosition(LongVector3* position)
 	if (!FindWaterSpawnHeight(top, &height, [&](long long z) {
 		// Below the stored terrain is solid basement, not a spawnable column.
 		if (z < field.base_z) return false;
-		return world->GetBlockInterpolated(LongVector3(x, y, z)).type == cube::Block::Water;
+		return NativeWaterBlock(world,LongVector3(x, y, z)).type == cube::Block::Water;
 	})) return false;
 	position->z = height * cube::DOTS_PER_BLOCK + cube::DOTS_PER_BLOCK / 2;
 	// Spread fish through the upper water column when there is enough depth.
 	LongVector3 deeper = *position;
 	deeper.z -= (2 + RandomInt() % 10) * cube::DOTS_PER_BLOCK;
 	LongVector3 body(x, y, pydiv(deeper.z, cube::DOTS_PER_BLOCK));
-	if (body.z >= field.base_z && world->GetBlockInterpolated(body).type == cube::Block::Water &&
-		world->GetBlockInterpolated(LongVector3(x, y, body.z + 1)).type == cube::Block::Water)
+	if (body.z >= field.base_z && NativeWaterBlock(world,body).type == cube::Block::Water &&
+		NativeWaterBlock(world,LongVector3(x, y, body.z + 1)).type == cube::Block::Water)
 		*position = deeper;
 	return true;
 }
@@ -49,7 +50,7 @@ bool cube::Helper::FindWaterSpawnPosition(LongVector3* position)
 		return false;
 	long long height;
 	bool found = FindWaterSpawnHeight(blockPosition.z, &height, [&](long long z) {
-		return world->GetBlockInterpolated(LongVector3(blockPosition.x, blockPosition.y, z)).type == cube::Block::Water;
+		return NativeWaterBlock(world,LongVector3(blockPosition.x, blockPosition.y, z)).type == cube::Block::Water;
 	});
 	if (!found) return false;
 	position->z = height * cube::DOTS_PER_BLOCK + cube::DOTS_PER_BLOCK / 2;

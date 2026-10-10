@@ -20,20 +20,20 @@ int main()
 	assert(FindWaterSpawnHeight(127, &z, ocean) && z == -1); // Search boundary.
 	assert(!FindWaterSpawnHeight(128, &z, ocean));
 	assert(FindWaterSpawnHeight(0, &z, [](long long height) { return height >= 6 && height <= 9; }) && z == 6);
-	assert(WaterPopulationCanSpawn(28, 0, 120, 120));
-	assert(!WaterPopulationCanSpawn(30, 0, 120, 120));
+	assert(WaterPopulationCanSpawn(16, 0, 120, 120));
+	assert(!WaterPopulationCanSpawn(18, 0, 120, 120));
 	assert(!WaterPopulationCanSpawn(0, 2, 120, 120));
 	assert(!WaterPopulationCanSpawn(0, 0, 119, 120));
 	assert(WaterPopulationCanSpawn(0, 0, 120, 120));
 	assert(!WaterPopulationCanSpawn(0, 1, 120, 120)); // Do not mix a new school into an occupied chunk.
-	assert(!WaterPopulationCanSpawn(29, 0, 120, 120)); // No lone spawn at the cap boundary.
+	assert(!WaterPopulationCanSpawn(17, 0, 120, 120)); // No lone spawn at the cap boundary.
 	assert(WaterSchoolSize(0, 0) == 2 && WaterSchoolSize(0, 1) == 3);
-	assert(WaterSchoolSize(28, 1) == 2 && WaterSchoolSize(29, 0) == 0);
-	for (int total = 0; total <= 30; ++total)
+	assert(WaterSchoolSize(16, 1) == 2 && WaterSchoolSize(17, 0) == 0);
+	for (int total = 0; total <= 18; ++total)
 		for (unsigned int roll = 0; roll < 20; ++roll) {
 			int count = WaterSchoolSize(total, roll);
 			assert(count == 0 || (count >= 2 && count <= 3));
-			assert(total + count <= 30);
+			assert(total + count <= 18);
 		}
 	assert(WaterPopulationHash(-2, 3, 42, 0) == WaterPopulationHash(-2, 3, 42, 0));
 	assert(WaterPopulationHash(-2, 3, 42, 0) != WaterPopulationHash(-2, 3, 42, 1));
@@ -72,10 +72,12 @@ int main()
     assert(WaterSiteCanRepopulate(700,100));
     assert(!WaterSiteCanRepopulate(99,100));
     for(unsigned h=0;h<1000;h++){int i=WaterSiteSpecies(h,false);assert(i!=0&&i!=1&&i!=5&&i!=6);assert(WaterSiteSpecies(h,true)!=5);}
+    int inlandSites=0,seaSites=0;for(int x=-30;x<30;x++)for(int y=-30;y<30;y++){inlandSites+=WaterSiteEligible(x,y,42,false);seaSites+=WaterSiteEligible(x,y,42,true);}
+    assert(inlandSites==1200&&seaSites==1800);
     int successes = 0;
 	for (unsigned int roll = 0; roll < 100; ++roll) successes += WaterBossRoll(roll);
 	assert(successes == 25);
-	int tracked = 30;
+	int tracked = 18;
 	for (int tick = 0; tick < 1000; ++tick) {
 		// Missing map/death/unload cannot free slots while the entities remain resident.
 		assert(WaterEntityLifecycle(true, false, false, false, true) != WaterEntityAction::Forget);

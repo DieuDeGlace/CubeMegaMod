@@ -1,6 +1,7 @@
 #include "DivingEvent.h"
 #include "../../../cwsdk-extension/helper/WaterPopulationRules.h"
 #include <algorithm>
+#include "../../../cwsdk-extension/helper/NativeWaterBlock.h"
 #include "../../../cwsdk-extension/helper/WaterSpawnSearch.h"
 #include "common/math.h"
 
@@ -29,14 +30,14 @@ static bool LakeGround(cube::World* world,LongVector3* position,const NativeLake
   if(!std::isfinite(field.field_8))continue;
   long long top=(long long)std::floor(field.field_8)+8;
   for(long long z=top;z>=top-32&&z>=field.base_z;--z){
-   auto type=world->GetBlockInterpolated(LongVector3(x,y,z)).type;
+   auto type=NativeWaterBlock(world,LongVector3(x,y,z)).type;
    if(type!=cube::Block::Solid&&type!=cube::Block::Grass&&type!=cube::Block::Ground&&type!=cube::Block::Snow&&type!=cube::Block::Path)continue;
-   if(world->GetBlockInterpolated(LongVector3(x,y,z+1)).type!=cube::Block::Air||world->GetBlockInterpolated(LongVector3(x,y,z+2)).type!=cube::Block::Air||world->GetBlockInterpolated(LongVector3(x,y,z+3)).type!=cube::Block::Air)continue;
+   if(NativeWaterBlock(world,LongVector3(x,y,z+1)).type!=cube::Block::Air||NativeWaterBlock(world,LongVector3(x,y,z+2)).type!=cube::Block::Air||NativeWaterBlock(world,LongVector3(x,y,z+3)).type!=cube::Block::Air)continue;
    // Require nearby lake water, not arbitrary hills inside the location radius.
    bool water=false;
    for(int dx=-4;dx<=4&&!water;dx+=2)for(int dy=-4;dy<=4&&!water;dy+=2){
     if(!world->GetZone(cube::Zone::ZoneCoordsFromBlocks(x+dx,y+dy)))continue;
-    for(int dz=-3;dz<=1;dz++)if(world->GetBlockInterpolated(LongVector3(x+dx,y+dy,z+dz)).type==cube::Block::Water){water=true;break;}
+    for(int dz=-3;dz<=1;dz++)if(NativeWaterBlock(world,LongVector3(x+dx,y+dy,z+dz)).type==cube::Block::Water){water=true;break;}
    }
    if(!water)continue;
    *position=LongVector3(x*cube::DOTS_PER_BLOCK+cube::DOTS_PER_BLOCK/2,y*cube::DOTS_PER_BLOCK+cube::DOTS_PER_BLOCK/2,(z+1)*cube::DOTS_PER_BLOCK);
@@ -192,12 +193,11 @@ void cube::DivingEvent::UpdateSwimming()
  bool check=m_SwimTime>=m_NextSwimCheck;
  if(check)m_NextSwimCheck=m_SwimTime+.1;
  auto point=[](const LongVector3& p){return SwimPoint{p.x/(double)cube::DOTS_PER_BLOCK,p.y/(double)cube::DOTS_PER_BLOCK,p.z/(double)cube::DOTS_PER_BLOCK};};
- auto player=point(game->GetPlayer()->entity_data.position);
  auto wet=[&](SwimPoint p){
   // Check a body-sized corridor and overhead water; never generate unloaded zones.
   for(auto offset:{SwimPoint{},SwimPoint{.45,0,0},SwimPoint{-.45,0,0},SwimPoint{0,.45,0},SwimPoint{0,-.45,0},SwimPoint{0,0,1}}){
    LongVector3 block((long long)std::floor(p.x+offset.x),(long long)std::floor(p.y+offset.y),(long long)std::floor(p.z+offset.z));
-   if(!world->GetZone(cube::Zone::ZoneCoordsFromBlocks(block.x,block.y))||world->GetBlockInterpolated(block).type!=cube::Block::Water)return false;
+   if(!world->GetZone(cube::Zone::ZoneCoordsFromBlocks(block.x,block.y))||NativeWaterBlock(world,block).type!=cube::Block::Water)return false;
   }return true;
  };
  // Planning has a fixed budget; ordinary movement does no path search.
@@ -210,10 +210,22 @@ void cube::DivingEvent::UpdateSwimming()
    ++member;auto creature=FindResidentWaterEntity(residents,pair.creature,pair.id);
    if(!creature||pair.retiring||creature->entity_data.HP<=0)continue;
    auto& e=creature->entity_data;auto current=point(e.position);
-   bool combat=e.current_ability!=0||e.stun_time>0||e.roll_time>0||
-    (e.hostility_type==(int)cube::Enums::EntityBehaviour::Hostile&&SwimDistance(current,player)<12);
+   if(check&&e.stun_time<=0&&m_SwimTime>=pair.nextWaterRepair){
+    pair.nextWaterRepair=m_SwimTime+.5;
+    if(!wet(current)){
+     SwimPoint recovered{};
+     auto passable=[&](SwimPoint p){auto key=LongVector3((long long)std::floor(p.x),(long long)std::floor(p.y),(long long)std::floor(p.z));if(!world->GetZone(cube::Zone::ZoneCoordsFromBlocks(key.x,key.y)))return false;auto type=NativeWaterBlock(world,key).type;return type==cube::Block::Air||type==cube::Block::Water;};
+     if(SwimRecoverDepth(current,&recovered,passable,wet)){
+      current=recovered;e.position=LongVector3((long long)std::llround(current.x*cube::DOTS_PER_BLOCK),(long long)std::llround(current.y*cube::DOTS_PER_BLOCK),(long long)std::llround(current.z*cube::DOTS_PER_BLOCK));
+      pair.lastMotionPosition=current;pair.hasMotionSample=true;pair.swimming=false;
+     }
+    }
+   }
+   bool nativeMoving=pair.hasMotionSample && SwimDistance(current,pair.lastMotionPosition)>.02;
+   pair.lastMotionPosition=current;pair.hasMotionSample=true;
+   bool combat=e.current_ability!=0||e.stun_time>0;
    // Native chasing, fleeing, knockback and wandering always take precedence.
-   if(combat||e.velocity.x*e.velocity.x+e.velocity.y*e.velocity.y>.01){pair.swimming=false;pair.nextSwimPlan=m_SwimTime+1;continue;}
+   if(combat||nativeMoving){pair.swimming=false;pair.nextSwimPlan=m_SwimTime+1;continue;}
    if(pair.swimming&&SwimDistance(current,pair.swimTarget)<.2){pair.swimming=false;pair.nextSwimPlan=m_SwimTime+.5;}
    if(check&&pair.swimming&&!SwimPathClear(current,SwimStep(current,pair.swimTarget,.1,1.5),wet))pair.swimming=false;
    if(check&&!pair.swimming&&m_SwimTime>=pair.nextSwimPlan&&plans<2){
@@ -221,14 +233,19 @@ void cube::DivingEvent::UpdateSwimming()
     auto home=point(school.position);
     auto hash=WaterPopulationHash((int)std::floor(home.x/64),(int)std::floor(home.y/64),world->seed,pair.swimAttempt++);
     // Shared school heading with small member spacing, constrained to nearby water.
-    double angle=(hash%65536)*(6.283185307179586/65536.);
-    SwimPoint target{home.x+8*std::cos(angle)+(member%2?1:-1),home.y+8*std::sin(angle)+((int)member-2)*.8,home.z+((int)((hash>>16)%3)-1)};
-    if(SwimPathClear(current,target,wet)){pair.swimTarget=target;pair.swimming=true;}
+    for(unsigned trial=0;trial<4&&!pair.swimming;trial++){
+     double angle=((hash+trial*16411)%65536)*(6.283185307179586/65536.);
+     double reach=2+(hash%4);
+     SwimPoint target{current.x+reach*std::cos(angle),current.y+reach*std::sin(angle),current.z};
+     if(SwimDistance(target,home)>16)target=home;
+     if(SwimPathClear(current,target,wet)){pair.swimTarget=target;pair.swimming=true;}
+    }
    }
    if(!pair.swimming)continue;
    auto next=SwimStep(current,pair.swimTarget,dt,AquaticPassive(e.race)?.9:1.3);
    double wanted=std::atan2(next.x-current.x,-(next.y-current.y))*180/3.141592653589793;
    double turn=std::remainder(wanted-e.yaw,360.);e.yaw+=(float)SwimClamp(turn,-90*dt,90*dt);
+   pair.lastMotionPosition=next;
    e.position=LongVector3((long long)std::llround(next.x*cube::DOTS_PER_BLOCK),(long long)std::llround(next.y*cube::DOTS_PER_BLOCK),(long long)std::llround(next.z*cube::DOTS_PER_BLOCK));
   }
  }
@@ -381,7 +398,11 @@ void cube::DivingEvent::SpawnFishes(const LongVector3& position)
 	});
 	m_WaterZones.erase(std::remove_if(m_WaterZones.begin(), m_WaterZones.end(), [&](const WaterZonePopulation& state) {
 		if(std::find(loaded.begin(),loaded.end(),state.zone)!=loaded.end())return false;
-        if(state.populated){auto dormant=state;if(!dormant.emptySince)dormant.emptySince=m_CurrentTime;m_DormantWaterZones.push_back(dormant);}
+        if(state.populated){
+            bool alive=false;for(auto& group:m_SpawnedCreatures)if(cube::Zone::ZoneCoordsFromDots(group.position)==state.zone)for(auto& pair:group.creature_ids){auto resident=FindResidentWaterEntity(game->host.world.creatures,pair.creature,pair.id);if(resident&&resident->entity_data.HP>0&&!pair.retiring)alive=true;}
+            // Living populations reload normally; cleared sites retain their cooldown.
+            if(!alive){auto dormant=state;if(!dormant.emptySince)dormant.emptySince=m_CurrentTime;m_DormantWaterZones.push_back(dormant);}
+        }
         return true;
 	}), m_WaterZones.end());
 	for (auto zone : loaded)
@@ -433,6 +454,11 @@ void cube::DivingEvent::SpawnFishes(const LongVector3& position)
 		LongVector3 spawn(blockX * cube::DOTS_PER_BLOCK + cube::DOTS_PER_BLOCK / 2,
 			blockY * cube::DOTS_PER_BLOCK + cube::DOTS_PER_BLOCK / 2, 0);
 
+  bool ocean=OceanSite(world,spawn);
+  if(!WaterSiteEligible(state.zone.x,state.zone.y,world->seed,ocean))continue;
+  bool crowded=false;
+  for(auto& existing:m_SpawnedCreatures)if(!existing.creature_ids.empty() && WaterWithinRadius(pydiv(existing.position.x,cube::DOTS_PER_BLOCK),pydiv(existing.position.y,cube::DOTS_PER_BLOCK),blockX,blockY,ocean?96:128)){crowded=true;break;}
+  if(crowded)continue;
   auto lake=LakeLocation(world,blockX,blockY);
   if(lake.type==13&&lake.influence>0){
    int race=LakeDominantRace(WaterPopulationHash(lake.x,lake.y,world->seed,0));
@@ -466,7 +492,9 @@ void cube::DivingEvent::SpawnFishes(const LongVector3& position)
             auto zone=world->GetZone(state.zone);if(!zone)continue;
             auto& field=zone->fields[(int)pymod(blockX,64)*64+(int)pymod(blockY,64)];
             long long top=std::isfinite(field.field_8)?(long long)std::floor(field.field_8)+4:field.base_z+(long long)field.blocks.size();
-            if(!FindWaterSpawnHeight(std::max<long long>(0,top), &height, [&](long long z){return z>=field.base_z && world->GetBlockInterpolated(LongVector3(blockX,blockY,z)).type==cube::Block::Water;}))continue;
+            if(!FindWaterSpawnHeight(std::max<long long>(0,top), &height, [&](long long z){return z>=field.base_z && NativeWaterBlock(world,LongVector3(blockX,blockY,z)).type==cube::Block::Water;}))continue;
+            long long depth=2+(hash%3);
+            if(NativeWaterBlock(world,LongVector3(blockX,blockY,height-depth)).type==cube::Block::Water)height-=depth;
             spawn.z=height*cube::DOTS_PER_BLOCK+cube::DOTS_PER_BLOCK/2;
             state.anchor=spawn;state.hasAnchor=true;
         }
@@ -476,7 +504,7 @@ void cube::DivingEvent::SpawnFishes(const LongVector3& position)
 		int wanted = WaterSchoolSize(total, hash);
 		std::vector<LongVector3> positions{ spawn };
 		auto isWater = [&](const LongVector3& p) {
-			return world->GetBlockInterpolated(LongVector3(pydiv(p.x, cube::DOTS_PER_BLOCK),
+			return NativeWaterBlock(world,LongVector3(pydiv(p.x, cube::DOTS_PER_BLOCK),
 				pydiv(p.y, cube::DOTS_PER_BLOCK), pydiv(p.z, cube::DOTS_PER_BLOCK))).type == cube::Block::Water;
 		};
 		// Validate a compact school before creating any entities. Keep every member
@@ -675,12 +703,11 @@ void cube::DivingEvent::BoundCheckFishes(const LongVector3& position)
 	auto game = cube::GetGame();
 	for (auto group = m_SpawnedCreatures.begin(); group != m_SpawnedCreatures.end();)
 	{
-		long long px=pydiv(position.x,cube::DOTS_PER_BLOCK),py=pydiv(position.y,cube::DOTS_PER_BLOCK);
-		bool originLoaded = game->world->GetZone(cube::Zone::ZoneCoordsFromDots(group->position)) != nullptr&&WaterWithinRadius(pydiv(group->position.x,cube::DOTS_PER_BLOCK),pydiv(group->position.y,cube::DOTS_PER_BLOCK),px,py,WaterRetireRadius);
+		bool originLoaded = game->world->GetZone(cube::Zone::ZoneCoordsFromDots(group->position)) != nullptr;
 		for (auto pair = group->creature_ids.begin(); pair != group->creature_ids.end();)
 		{
 			auto resident = FindResidentWaterEntity(game->host.world.creatures, pair->creature, pair->id);
-			bool currentLoaded = resident && game->world->GetZone(cube::Zone::ZoneCoordsFromDots(resident->entity_data.position))&&WaterWithinRadius(pydiv(resident->entity_data.position.x,cube::DOTS_PER_BLOCK),pydiv(resident->entity_data.position.y,cube::DOTS_PER_BLOCK),px,py,WaterRetireRadius);
+			bool currentLoaded = resident && game->world->GetZone(cube::Zone::ZoneCoordsFromDots(resident->entity_data.position));
 			auto action = WaterEntityLifecycle(resident != nullptr, resident && resident->entity_data.HP > 0.f, originLoaded, currentLoaded, pair->retiring);
 			if (action == WaterEntityAction::Forget) { pair = group->creature_ids.erase(pair); continue; }
 			pair->id = resident->id;
@@ -756,7 +783,7 @@ void cube::DivingEvent::BoundCheckBosses(const LongVector3& position)
 	for (auto pair = m_SpawnedBosses.begin(); pair != m_SpawnedBosses.end();)
 	{
 		auto resident = FindResidentWaterEntity(game->host.world.creatures, pair->creature, pair->id);
-		bool currentLoaded = resident && game->world->GetZone(cube::Zone::ZoneCoordsFromDots(resident->entity_data.position))&&WaterWithinRadius(pydiv(resident->entity_data.position.x,cube::DOTS_PER_BLOCK),pydiv(resident->entity_data.position.y,cube::DOTS_PER_BLOCK),px,py,WaterRetireRadius);
+		bool currentLoaded = resident && game->world->GetZone(cube::Zone::ZoneCoordsFromDots(resident->entity_data.position));
 		auto action = WaterEntityLifecycle(resident != nullptr, resident && resident->entity_data.HP > 0.f, originLoaded, currentLoaded, pair->retiring);
 		if (action == WaterEntityAction::Forget) { pair = m_SpawnedBosses.erase(pair); continue; }
 		pair->id = resident->id;

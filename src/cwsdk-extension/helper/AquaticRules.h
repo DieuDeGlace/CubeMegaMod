@@ -23,3 +23,10 @@ template<class Wet>bool SwimPathClear(SwimPoint a,SwimPoint b,Wet wet){
 // Native Steam IDs: normal crab, spitter, and four slime colors.
 inline bool LakeEncounterRace(int race){return race==106||race==86||(race>=37&&race<=40);}
 inline int LakeDominantRace(unsigned hash){return hash%3==0?106:hash%3==1?86:37+(hash/3)%4;}
+
+// Recover a surfaced fish through air/water only, never through terrain.
+template<class Passable,class Wet>bool SwimRecoverDepth(SwimPoint current,SwimPoint* out,Passable passable,Wet wet){
+ for(int step=0;step<=20;step++){auto p=current;p.z-=step*.5;if(!passable(p))return false;
+  if(wet(p)){*out=p;return true;}}
+ return false;
+}
