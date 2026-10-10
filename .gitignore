@@ -1,2 +1,12 @@
 .vs/
 out/
+# Local build outputs and gameplay data
+build*/
+*.dll
+*.exe
+*.lib
+*.exp
+*.obj
+*.pdb
+*.state
+*-audit.txt

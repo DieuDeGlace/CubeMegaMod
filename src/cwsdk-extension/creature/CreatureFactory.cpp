@@ -6,6 +6,7 @@
 
 #include "Creature.h"
 #include "../helper/Helper.h"
+#include "../helper/AquaticRules.h"
 
 static std::vector<__int64> s_InvicibleIds;
 
@@ -51,7 +52,7 @@ __int64 cube::CreatureFactory::CheckAndUpdateID(__int64 id)
 				return newId;
 			}
 		}
-		
+
 		for (auto creature : *local_list)
 		{
 			if (creature->id == id)
@@ -168,7 +169,7 @@ cube::Creature* cube::CreatureFactory::SpawnCreature(const LongVector3& position
 		creature->entity_data.current_region = region;
 		creature->entity_data.yaw = Helper::RandomZeroToOne() * 360;
 		cube::CreatureFactory::SetAppearance(creature, entityType, entityBehaviour, level);
-		
+
 		auto inv = &creature->inventory_tabs;
 		for (auto& vector : *inv)
 		{
@@ -254,68 +255,27 @@ cube::Creature* cube::CreatureFactory::SpawnFish(const LongVector3& position, co
 		position,
 		region,
 		ENTITY_TYPES[entityType],
-		(int)cube::Enums::EntityBehaviour::Hostile,
+		(int)(AquaticPassive(ENTITY_TYPES[entityType]) ? cube::Enums::EntityBehaviour::Passive : cube::Enums::EntityBehaviour::Hostile),
 		level
 	);
 
 	if (creature != nullptr)
 	{
-		creature->entity_data.appearance.flags2 |= friendly << (int)cube::Enums::AppearanceModifiers::IsFriendly;
+		if(AquaticPassive(ENTITY_TYPES[entityType]))creature->entity_data.appearance.flags2 |= 1 << (int)cube::Enums::AppearanceModifiers::IsFriendly;
 		creature->entity_data.HP = creature->GetMaxHP();
 	}
 
 	return creature;
 }
 
-cube::Creature* cube::CreatureFactory::SpawnBoss(const LongVector3& position, const IntVector2& region)
+cube::Creature* cube::CreatureFactory::SpawnBoss(const LongVector3& position, const IntVector2& region, int level, int lakeRace)
 {
-	const static int IDS[] =
-	{
-		82,  // Minotaur
-		108, // Troll
-		109, // Dark troll
-		110, // Hell demon
-		111, // Golem
-		112, // Ember golem
-		115, // Cyclops
-		118, // Runegiant
-		119, // Saurian
-		150, // Shark
-		215, // Turtle (blue)
-		216, // Snow gnobold
-		229, // Crawler
-		254, // Half-demon
-		263, // Treant
-		269, // Monstosity
-		295, // Snail
-	};
+	int bossType = cube::Helper::RandomInt() % (sizeof(AquaticBosses)/sizeof(*AquaticBosses));
+	auto selected = AquaticBosses[bossType];
+	if(lakeRace!=-1){if(!LakeEncounterRace(lakeRace))return nullptr;selected={lakeRace,2.f};}
 
-	const static float SCALES[] =
-	{
-		3.0f, // Minotaur
-		2.0f, // Troll
-		2.0f, // Dark troll
-		2.0f, // Hell demon
-		2.0f, // Golem
-		2.0f, // Ember golem
-		2.0f, // Cyclops
-		2.0f, // Runegiant
-		2.0f, // Saurian
-		4.0f, // Shark
-		5.0f, // Turtle (blue)
-		5.0f, // Snow gnobold
-		6.0f, // Crawler
-		6.0f, // Half-demon
-		2.0f, // Treant
-		3.0f, // Monstosity
-		6.0f, // Snail
-	};
-
-	int count = sizeof(IDS) / sizeof(*IDS);
-	int bossType = cube::Helper::RandomInt() % count;
-
-	int level = 3 + cube::Helper::RandomInt() % 3;
-	cube::Creature* boss = SpawnCreature(position, region, IDS[bossType], (int)cube::Enums::EntityBehaviour::Hostile, level);
+	if (level < 0) level = 3 + cube::Helper::RandomInt() % 3;
+	cube::Creature* boss = SpawnCreature(position, region, selected.race, (int)cube::Enums::EntityBehaviour::Hostile, level);
 	if (boss == nullptr)
 	{
 		return boss;
@@ -337,12 +297,16 @@ cube::Creature* cube::CreatureFactory::SpawnBoss(const LongVector3& position, co
 		boss->entity_data.appearance.flags2 |= 1 << (int)cube::Enums::AppearanceModifiers::IsNamedBoss;
 	}
 
+	if(lakeRace!=-1){
+		boss->entity_data.appearance.flags2 &= ~(1 << (int)cube::Enums::AppearanceModifiers::IsMiniBoss);
+		boss->entity_data.appearance.flags2 |= 1 << (int)cube::Enums::AppearanceModifiers::IsBoss;
+	}
 	boss->entity_data.binary_toggles |= 1 << (int)cube::Enums::StateFlags::VisibleOnMap;
 	boss->entity_data.HP = boss->GetMaxHP();
 
-	boss->entity_data.appearance.graphics_scale *= SCALES[bossType];
-	boss->entity_data.appearance.hitbox_scale *= SCALES[bossType];
-	boss->entity_data.appearance.physics_scale *= SCALES[bossType];
+	boss->entity_data.appearance.graphics_scale *= selected.scale;
+	boss->entity_data.appearance.hitbox_scale *= selected.scale;
+	boss->entity_data.appearance.physics_scale *= selected.scale;
 
 	return boss;
 }
@@ -364,7 +328,7 @@ std::vector<cube::Creature*> cube::CreatureFactory::SpawnFishes(int amount, long
 		offset.x += position.x;
 		offset.y += position.y;
 		offset.z += position.z;
-		if (Helper::PositionContainsWater(offset))
+		if (Helper::FindWaterSpawnPosition(&offset))
 		{
 			cube::Creature* creature = cube::CreatureFactory::SpawnFish(offset, player->entity_data.current_region, -1, -1, 0);
 			if (creature != nullptr)

@@ -13,6 +13,8 @@ class SeaExplorationMod : public CubeMod
 private:
 	SeaExplorationData m_Data;
 	cube::DivingEvent* m_DivingEvent;
+	cube::Creature* m_EventPlayer = nullptr;
+	cube::World* m_EventWorld = nullptr;
 
 public:
 	SeaExplorationMod() {

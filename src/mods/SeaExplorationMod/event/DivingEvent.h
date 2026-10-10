@@ -2,20 +2,24 @@
 
 #include "cwsdk.h"
 #include <utility>
+#include <chrono>
+#include "../../../cwsdk-extension/helper/AquaticRules.h"
 
 #include "../src/cwsdk-extension.h"
+#include "../../../cwsdk-extension/helper/WaterPopulationRules.h"
 
 // Fish spawning constants
-const static double FISH_SPAWN_INTERVAL = 1;
-const static auto FISH_SPAWN_AMOUNT = 4;
-const static auto MAX_FISH_COUNT = 100;
+const static double FISH_SPAWN_INTERVAL = 5;
+const static auto MAX_FISH_COUNT = WaterPopulationCap;
+const static auto MAX_FISH_PER_ZONE = WaterSchoolMax;
+const static double WATER_ZONE_RESPAWN_INTERVAL = 120;
 
 // Treasure spawning constants
 const static double TREASURE_SPAWN_INTERVAL = 60;
 const static auto MAX_TREASURE_COUNT = 5;
 
 // Boss spawning constants
-const static double BOSS_SPAWN_INTERVAL = 10;
+const static double BOSS_SPAWN_INTERVAL = 600;
 const static auto MAX_BOSS_COUNT = 1;
 
 // Other constants
@@ -27,12 +31,26 @@ struct IdCreaturePair
 {
 	__int64 id;
 	cube::Creature* creature;
+	bool retiring = false;
+	SwimPoint swimTarget;
+	bool swimming = false;
+	unsigned int swimAttempt = 0;
+	double nextSwimPlan = 0;
 };
 
 struct SpawnMoment
 {
 	LongVector3 position;
+	int lakeRace = 0;
 	std::vector<IdCreaturePair> creature_ids;
+};
+
+struct WaterZonePopulation
+{
+	IntVector2 zone;
+	unsigned int attempts = 0;
+	time_t next_spawn = 0;
+	bool boss_attempted = false;
 };
 
 static long long DistanceSquared(const LongVector3& p1, const LongVector3& p2);
@@ -52,14 +70,24 @@ namespace cube
 		std::vector<SpawnMoment> m_SpawnedCreatures;
 		std::vector<IdCreaturePair> m_SpawnedTreasures;
 		std::vector<IdCreaturePair> m_SpawnedBosses;
+		IntVector2 m_BossZone;
+		std::vector<IntVector2> m_LakeBossVisits;
+		std::vector<WaterZonePopulation> m_WaterZones;
+		size_t m_NextWaterZone = 0;
+		std::chrono::steady_clock::time_point m_LastSwimTick = std::chrono::steady_clock::now();
+		double m_SwimTime = 0;
+		double m_NextSwimCheck = 0;
+		double m_NextSwimPlanBurst = 0;
 
 		bool* autoGoldUsage;
+		bool m_IsDiving = false;
 
 	public:
 		DivingEvent(bool* autoGoldUsage);
 		~DivingEvent();
 
 		void Update() override;
+		void Abandon();
 	private:
 		void UpdateIds();
 		void SetDiving(bool diving);
@@ -70,7 +98,9 @@ namespace cube
 
 		// Fish logic
 		void HandleFishTimer();
+		void UpdateSwimming();
 		void SpawnFishes(const LongVector3& position);
+		void GetLocalEnemyProfile(const LongVector3& position, IntVector2* region, int* stars);
 
 		// Treasure logic
 		void HandleTreasureTimer();

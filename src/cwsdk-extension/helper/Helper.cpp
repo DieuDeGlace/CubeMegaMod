@@ -1,9 +1,63 @@
 #include "Helper.h"
+#include "WaterSpawnSearch.h"
+#include "common/math.h"
 
 #define DEBUG_HELPER 0
 
+bool cube::Helper::FindWaterColumnSpawnPosition(LongVector3* position)
+{
+	if (!position || !cube::GetGame()->world) return false;
+	auto world = cube::GetGame()->world;
+	long long x = pydiv(position->x, cube::DOTS_PER_BLOCK);
+	long long y = pydiv(position->y, cube::DOTS_PER_BLOCK);
+	auto zone = world->GetZone(cube::Zone::ZoneCoordsFromBlocks(x, y));
+	if (!zone) return false;
+	int fieldIndex = (int)pymod(x, cube::BLOCKS_PER_ZONE) * cube::BLOCKS_PER_ZONE +
+		(int)pymod(y, cube::BLOCKS_PER_ZONE);
+	auto& field = zone->fields[fieldIndex];
+	// Search from the actual terrain column, independently of player altitude.
+	long long top = field.base_z + (long long)field.blocks.size();
+	// Tall trees/buildings extend voxel storage far above the actual water.
+	// Start near the terrain surface instead of that decoration storage ceiling.
+	if(std::isfinite(field.field_8))top=(long long)std::floor(field.field_8)+4;
+	if (top < 0) top = 0;
+	long long height;
+	if (!FindWaterSpawnHeight(top, &height, [&](long long z) {
+		// Below the stored terrain is solid basement, not a spawnable column.
+		if (z < field.base_z) return false;
+		return world->GetBlockInterpolated(LongVector3(x, y, z)).type == cube::Block::Water;
+	})) return false;
+	position->z = height * cube::DOTS_PER_BLOCK + cube::DOTS_PER_BLOCK / 2;
+	// Spread fish through the upper water column when there is enough depth.
+	LongVector3 deeper = *position;
+	deeper.z -= (2 + RandomInt() % 10) * cube::DOTS_PER_BLOCK;
+	LongVector3 body(x, y, pydiv(deeper.z, cube::DOTS_PER_BLOCK));
+	if (body.z >= field.base_z && world->GetBlockInterpolated(body).type == cube::Block::Water &&
+		world->GetBlockInterpolated(LongVector3(x, y, body.z + 1)).type == cube::Block::Water)
+		*position = deeper;
+	return true;
+}
+
+bool cube::Helper::FindWaterSpawnPosition(LongVector3* position)
+{
+	cube::World* world = cube::GetGame()->world;
+	if (!world || !position) return false;
+	LongVector3 blockPosition(pydiv(position->x, cube::DOTS_PER_BLOCK),
+		pydiv(position->y, cube::DOTS_PER_BLOCK), pydiv(position->z, cube::DOTS_PER_BLOCK));
+	// Never request terrain interpolation in an unloaded zone.
+	if (!world->GetZone(cube::Zone::ZoneCoordsFromBlocks(blockPosition.x, blockPosition.y)))
+		return false;
+	long long height;
+	bool found = FindWaterSpawnHeight(blockPosition.z, &height, [&](long long z) {
+		return world->GetBlockInterpolated(LongVector3(blockPosition.x, blockPosition.y, z)).type == cube::Block::Water;
+	});
+	if (!found) return false;
+	position->z = height * cube::DOTS_PER_BLOCK + cube::DOTS_PER_BLOCK / 2;
+	return true;
+}
+
 int cube::Helper::CWGetItemsSold(cube::World* world, cube::Item item, long long seller_id)
-{	
+{
 	return((int (*)(cube::World*, cube::Item, long long))CWOffset(0x2A0C80))(world, item, seller_id);
 }
 
@@ -28,9 +82,9 @@ static int CheckPetId(int id)
 		131, 132, 133, 134, 135, 136, 137, 138, 139, 143, 175, 176,
 		177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188,
 		189, 190, 194, 195, 196, 197, 198, 204, 205, 206, 207, 212,
-		221, 222, 223, 231, 232, 233, 234, 235, 238, 239, 240, 241, 
-		242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 264, 265, 
-		266, 267, 268, 271, 272, 273, 274, 275, 278, 279, 280, 281, 
+		221, 222, 223, 231, 232, 233, 234, 235, 238, 239, 240, 241,
+		242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 264, 265,
+		266, 267, 268, 271, 272, 273, 274, 275, 278, 279, 280, 281,
 		282, 283, 284, 285, 286, 289, 297, 298, 299, 300, 301, 302
 	};
 
@@ -65,7 +119,7 @@ cube::Item cube::Helper::GenerateItem(ItemGenerationType type, IntVector2 region
 	}
 	item.rarity = 0;
 	item.region = region;
-	
+
 	switch (type)
 	{
 	case ItemGenerationType::Artifact:
@@ -161,7 +215,7 @@ void cube::Helper::LoreInteraction(cube::Creature* player, int percentage)
 	int compare = 0;
 	if (percentage < 100)
 	{
-		
+
 		// percentage% (max 50%) chance for 1 star gear
 		compare = min(percentage, 50);
 		if (chance <= compare)
@@ -170,7 +224,7 @@ void cube::Helper::LoreInteraction(cube::Creature* player, int percentage)
 			item.rarity = 0;
 			DropItem(player, item);
 		}
-		
+
 		// [Possible] Drop gold
 	}
 	else if (percentage < 150)
@@ -201,7 +255,7 @@ void cube::Helper::LoreInteraction(cube::Creature* player, int percentage)
 		wchar_t buffer[250];
 		swprintf_s(buffer, 250, L"Lore: %d(DropChance: %d, Result: %d)\n", percentage, compare, chance);
 		cube::GetGame()->PrintMessage(buffer, 250, 170, 90);
-	}	
+	}
 }
 
 bool cube::Helper::PositionContainsWater(const LongVector3& position)

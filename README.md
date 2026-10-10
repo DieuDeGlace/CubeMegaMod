@@ -1,3 +1,11 @@
+# AI-assisted fork
+
+This fork was edited by DieuDeGlace with assistance from OpenAI ChatGPT/Codex. Original authorship and upstream attribution are retained. See [BUILD.md](BUILD.md) for the current changes and build instructions.
+
+---
+
+## Historical upstream documentation
+
 # CubeMegaMod
 This is a large mod for CubeWorld steam version. It adds underwater exploration, combat modifications,
 lore improvements, gold usages and more.
@@ -149,8 +157,8 @@ Stat updates to mobs and pets.
 - Increased the stack size for every item to 100.
 
 ### Spirit Cubes [ID: -]
-Spirit cubes are available again in the game. They can be bought from the weapon vendor for 25g each! Checkout the 
-Shop Updates [ID: 5] part of the mod. 
+Spirit cubes are available again in the game. They can be bought from the weapon vendor for 25g each! Checkout the
+Shop Updates [ID: 5] part of the mod.
 
 ## Installing
 Download the latest version from the releases. Put the `CubeMegaMod-v.x.x.x.dll` of one of the releases in your mod folder. For usage of the mod, checkout the attached readme.

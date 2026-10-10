@@ -66,6 +66,8 @@ namespace cube::Helper
 	void LoreInteraction(cube::Creature* player, int percentage);
 
 	bool PositionContainsWater(const LongVector3& position);
+	bool FindWaterSpawnPosition(LongVector3* position);
+	bool FindWaterColumnSpawnPosition(LongVector3* position);
 
 	inline static int RandomInt()
 	{
@@ -79,7 +81,7 @@ namespace cube::Helper
 		std::srand(random + count);
 		return random;
 	}
-	
+
 	inline static float RandomZeroToOne()
 	{
 		return (float)(RandomInt() / (float)(RAND_MAX));

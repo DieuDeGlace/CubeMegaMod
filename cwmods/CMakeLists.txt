@@ -1,4 +1,4 @@
-cmake_minimum_required (VERSION 3.8)
+cmake_minimum_required (VERSION 3.15)
 if(NOT CMAKE_CL_64)
    message(FATAL_ERROR "CWSDK REQUIRES clang-cl x64 to build. " )
 endif()
@@ -6,7 +6,7 @@ if(CMAKE_BUILD_TYPE MATCHES "Debug")
     message(FATAL_ERROR "CWSDK cannot be built debug mode due to MSVC binary compatibility issues." )
 endif()
 project("CWSDK" VERSION "1.0.0")
-add_library (CWSDK 
+add_library (CWSDK
     cwsdk.cpp
     common/BytesIO.cpp
     common/ColorRGB.cpp

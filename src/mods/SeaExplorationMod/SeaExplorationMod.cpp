@@ -65,29 +65,38 @@ int SeaExplorationMod::OnChestInteraction(cube::Game* game, cube::Creature* crea
 		}
 		break;
 	}
-    
+
     return 1;
 }
 
 void SeaExplorationMod::OnGameTick(cube::Game* game)
 {
-	if (cube::Helper::InGUI(game) || game->host.running == false)
+	if (!game->host.running || !m_Enabled)
+	{
+		delete m_DivingEvent;
+		m_DivingEvent = nullptr;
+		m_EventPlayer = nullptr;
+		m_EventWorld = nullptr;
+		return;
+	}
+	if (cube::Helper::InGUI(game) || !game->GetPlayer())
 	{
 		return;
 	}
 
-	unsigned int flags = game->GetPlayer()->entity_data.flags;
-	if (flags & (1 << (int)cube::Enums::CollisionFlags::Water) && !(flags & (1 << (int)cube::Enums::CollisionFlags::Surfaced)))
+	// Keep the ambient enemy event alive above water as well as below it.
+	if (m_DivingEvent && (m_EventPlayer != game->GetPlayer() || m_EventWorld != game->world))
 	{
-		if (m_DivingEvent == nullptr)
-		{
-			m_DivingEvent = new cube::DivingEvent(&m_Data.autoGoldUsage);
-		}
-	}
-	else if (m_DivingEvent != nullptr)
-	{
+		// The old world's entities have already been disposed by the game.
+		m_DivingEvent->Abandon();
 		delete m_DivingEvent;
 		m_DivingEvent = nullptr;
+	}
+	if (m_DivingEvent == nullptr)
+	{
+		m_DivingEvent = new cube::DivingEvent(&m_Data.autoGoldUsage);
+		m_EventPlayer = game->GetPlayer();
+		m_EventWorld = game->world;
 	}
 
 	if (m_DivingEvent != nullptr)
