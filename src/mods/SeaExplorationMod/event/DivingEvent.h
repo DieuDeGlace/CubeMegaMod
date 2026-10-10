@@ -9,7 +9,7 @@
 #include "../../../cwsdk-extension/helper/WaterPopulationRules.h"
 
 // Fish spawning constants
-const static double FISH_SPAWN_INTERVAL = 5;
+const static double FISH_SPAWN_INTERVAL = 1;
 const static auto MAX_FISH_COUNT = WaterPopulationCap;
 const static auto MAX_FISH_PER_ZONE = WaterSchoolMax;
 const static double WATER_ZONE_RESPAWN_INTERVAL = 120;
@@ -48,7 +48,11 @@ struct SpawnMoment
 struct WaterZonePopulation
 {
 	IntVector2 zone;
-	unsigned int attempts = 0;
+	unsigned int siteProbe = 0;
+	bool populated = false;
+	time_t emptySince = 0;
+	bool hasAnchor = false;
+	LongVector3 anchor;
 	time_t next_spawn = 0;
 	bool boss_attempted = false;
 };
@@ -73,6 +77,7 @@ namespace cube
 		IntVector2 m_BossZone;
 		std::vector<IntVector2> m_LakeBossVisits;
 		std::vector<WaterZonePopulation> m_WaterZones;
+		std::vector<WaterZonePopulation> m_DormantWaterZones;
 		size_t m_NextWaterZone = 0;
 		std::chrono::steady_clock::time_point m_LastSwimTick = std::chrono::steady_clock::now();
 		double m_SwimTime = 0;

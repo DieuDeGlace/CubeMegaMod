@@ -268,9 +268,10 @@ cube::Creature* cube::CreatureFactory::SpawnFish(const LongVector3& position, co
 	return creature;
 }
 
-cube::Creature* cube::CreatureFactory::SpawnBoss(const LongVector3& position, const IntVector2& region, int level, int lakeRace)
+cube::Creature* cube::CreatureFactory::SpawnBoss(const LongVector3& position, const IntVector2& region, int level, int lakeRace, bool ocean)
 {
 	int bossType = cube::Helper::RandomInt() % (sizeof(AquaticBosses)/sizeof(*AquaticBosses));
+	if (!ocean && AquaticBosses[bossType].race == 107) bossType = cube::Helper::RandomInt() % 4;
 	auto selected = AquaticBosses[bossType];
 	if(lakeRace!=-1){if(!LakeEncounterRace(lakeRace))return nullptr;selected={lakeRace,2.f};}
 

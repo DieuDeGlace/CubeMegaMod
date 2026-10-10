@@ -1,6 +1,6 @@
 #pragma once
 #include <cstdint>
-constexpr int WaterPopulationCap = 60;
+constexpr int WaterPopulationCap = 30;
 constexpr int WaterSchoolMax = 3;
 constexpr int WaterSpawnRadius = 192;
 constexpr int WaterRetireRadius = 256;
@@ -47,4 +47,18 @@ Pointer FindResidentWaterEntity(const List& residents, Pointer tracked, decltype
 	// Never dereference an old pointer or trust an ID that another entity reused.
 	for (auto resident : residents) if (resident == tracked && resident->id == id) return resident;
 	return nullptr;
+}
+
+// Stable lattice anchors and species: independent of update order or visit count.
+inline unsigned int WaterSiteSlot(unsigned int hash,unsigned int probe){return (probe+hash%16)%16;}
+inline int WaterSiteCoordinate(unsigned int slot,bool y){return 8+(y?slot/4:slot%4)*16;}
+inline int WaterSiteSpecies(unsigned int hash){return (hash>>8)%13;}
+
+constexpr long long WaterSiteRespawnDelay = 600;
+inline bool WaterSiteCanRepopulate(long long now,long long emptySince){return emptySince>0 && now>=emptySince && now-emptySince>=WaterSiteRespawnDelay;}
+
+inline int WaterSiteSpecies(unsigned int hash,bool ocean){
+ constexpr int sea[]={0,1,2,3,4,6,7,8,9,10,11,12};
+ constexpr int inland[]={2,3,4,7,8,9,10,11,12};
+ return ocean?sea[(hash>>8)%12]:inland[(hash>>8)%9];
 }

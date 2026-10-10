@@ -22,7 +22,7 @@ Features of this mod include sea exploration, lore interactions and combat impro
 **NOTE THAT EVERY SEPERATE FEATURE CAN BE DISABLED WITH THE CHAT**
 
 ### Sea exploration [ID: 1]
-Going underwater will spawn random hostile fishes around you. Going underwater usually drains stamina.
+Loaded water chunks populate fixed schools of 2-3 fish, capped at 30 custom aquatic/lake mobs nearby. Empty sites repopulate after ten minutes while loaded. The player does not need to be underwater. Going underwater usually drains stamina.
 This is still the case, however now 10 gold is automatically used to gain the underwater breathing ability for 10 seconds.
 On top of that, underwater exploring is rewarded with random chests spawning every 60 seconds.
 The chest types are:

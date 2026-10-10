@@ -1,6 +1,7 @@
 #include "DivingEvent.h"
 #include "../../../cwsdk-extension/helper/WaterPopulationRules.h"
 #include <algorithm>
+#include "../../../cwsdk-extension/helper/WaterSpawnSearch.h"
 #include "common/math.h"
 
 
@@ -42,6 +43,14 @@ static bool LakeGround(cube::World* world,LongVector3* position,const NativeLake
    return true;
   }
  }return false;
+}
+
+static bool OceanSite(cube::World* world,const LongVector3& site){
+ auto x=pydiv(site.x,cube::DOTS_PER_BLOCK),y=pydiv(site.y,cube::DOTS_PER_BLOCK);
+ if(x<INT_MIN||x>INT_MAX||y<INT_MIN||y>INT_MAX)return false;
+ IntVector2 region{};
+ ((void(*)(cube::World*,IntVector2*,int,int))((char*)CWBase()+0x2ada20))(world,&region,(int)x,(int)y);
+ return ((int(*)(cube::World*,int,int))((char*)CWBase()+0x2b9080))(world,region.x,region.y)==1;
 }
 
 const static bool DEBUG_DIVING_EVENT = false;
@@ -104,6 +113,7 @@ void cube::DivingEvent::Abandon()
 	m_SpawnedTreasures.clear();
 	m_SpawnedBosses.clear();
 	m_WaterZones.clear();
+	m_DormantWaterZones.clear();
 	m_LakeBossVisits.clear();
 	m_NextWaterZone = 0;
 }
@@ -370,20 +380,30 @@ void cube::DivingEvent::SpawnFishes(const LongVector3& position)
 		return a.x < b.x || (a.x == b.x && a.y < b.y);
 	});
 	m_WaterZones.erase(std::remove_if(m_WaterZones.begin(), m_WaterZones.end(), [&](const WaterZonePopulation& state) {
-		return std::find(loaded.begin(), loaded.end(), state.zone) == loaded.end();
+		if(std::find(loaded.begin(),loaded.end(),state.zone)!=loaded.end())return false;
+        if(state.populated){auto dormant=state;if(!dormant.emptySince)dormant.emptySince=m_CurrentTime;m_DormantWaterZones.push_back(dormant);}
+        return true;
 	}), m_WaterZones.end());
 	for (auto zone : loaded)
 	{
 		bool known = false;
 		for (auto& state : m_WaterZones) if (state.zone == zone) known = true;
-		if (!known) { WaterZonePopulation state; state.zone = zone; m_WaterZones.push_back(state); }
+		if (!known) {
+            auto saved=std::find_if(m_DormantWaterZones.begin(),m_DormantWaterZones.end(),[&](const WaterZonePopulation& s){return s.zone==zone;});
+            WaterZonePopulation state;state.zone=zone;
+            if(saved!=m_DormantWaterZones.end()){state=*saved;m_DormantWaterZones.erase(saved);}
+            m_WaterZones.push_back(state);
+        }
 	}
-	if (m_WaterZones.empty()) return;
+	// Expired unloaded cooldowns need no retained runtime state.
+    m_DormantWaterZones.erase(std::remove_if(m_DormantWaterZones.begin(),m_DormantWaterZones.end(),[&](const WaterZonePopulation& s){return WaterSiteCanRepopulate(m_CurrentTime,s.emptySince);}),m_DormantWaterZones.end());
+    if (m_WaterZones.empty()) return;
 	int total = 0;
 	for (auto& group : m_SpawnedCreatures) total += (int)group.creature_ids.size();
 	static unsigned spawnPass=0;
-	if(++spawnPass%6==0){FILE*file=nullptr;fopen_s(&file,"Mods\\AquaticPopulation.log","a");if(file){fprintf(file,"Nearby water scan: loaded chunks=%zu tracked fish=%d/%d interval=5s\n",m_WaterZones.size(),total,WaterPopulationCap);fclose(file);}}
-	// Cycle loaded terrain chunks instead of generating a ring around the player.
+	if(++spawnPass%6==0){FILE*file=nullptr;fopen_s(&file,"Mods\\AquaticPopulation.log","a");if(file){fprintf(file,"Nearby water scan: loaded chunks=%zu tracked fish=%d/%d mode=fixed-sites\n",m_WaterZones.size(),total,WaterPopulationCap);fclose(file);}}
+	// Populate deterministic sites as chunks become available; no ambient spawn roll.
+ int schoolsCreated = 0;
 	for (size_t probe = 0; probe < std::min<size_t>(12, m_WaterZones.size()); ++probe)
 	{
 		m_NextWaterZone %= m_WaterZones.size();
@@ -396,10 +416,20 @@ void cube::DivingEvent::SpawnFishes(const LongVector3& position)
 					if (resident && (cube::Zone::ZoneCoordsFromDots(group.position) == state.zone ||
 						cube::Zone::ZoneCoordsFromDots(resident->entity_data.position) == state.zone)) ++local;
 				}
-		if (!WaterPopulationCanSpawn(total, local, m_CurrentTime, state.next_spawn)) continue;
-		unsigned int hash = WaterPopulationHash(state.zone.x, state.zone.y, world->seed, state.attempts++);
-		long long blockX = (long long)state.zone.x * cube::BLOCKS_PER_ZONE + 4 + hash % 56;
-		long long blockY = (long long)state.zone.y * cube::BLOCKS_PER_ZONE + 4 + (hash >> 16) % 56;
+		if (local != 0) { state.emptySince=0; continue; }
+        if (state.populated) {
+            if (!state.emptySince) state.emptySince=m_CurrentTime;
+            if (!WaterSiteCanRepopulate(m_CurrentTime,state.emptySince)) continue;
+        }
+        if (total > WaterPopulationCap - 2) continue;
+        unsigned int hash = WaterPopulationHash(state.zone.x, state.zone.y, world->seed, 0);
+        // Each chunk has a stable 4x4 lattice. Probe each site once, bounded per update.
+        // A valid site is retained if the factory temporarily cannot create entities.
+        if (!state.hasAnchor && state.siteProbe >= 16) continue;
+        unsigned int siteProbe = state.hasAnchor ? 0 : state.siteProbe++;
+        unsigned int slot = WaterSiteSlot(hash,siteProbe);
+        long long blockX = state.hasAnchor ? pydiv(state.anchor.x,cube::DOTS_PER_BLOCK) : (long long)state.zone.x * 64 + WaterSiteCoordinate(slot,false);
+        long long blockY = state.hasAnchor ? pydiv(state.anchor.y,cube::DOTS_PER_BLOCK) : (long long)state.zone.y * 64 + WaterSiteCoordinate(slot,true);
 		LongVector3 spawn(blockX * cube::DOTS_PER_BLOCK + cube::DOTS_PER_BLOCK / 2,
 			blockY * cube::DOTS_PER_BLOCK + cube::DOTS_PER_BLOCK / 2, 0);
 
@@ -424,10 +454,22 @@ void cube::DivingEvent::SpawnFishes(const LongVector3& position)
     if(LakeGround(world,&site,lake)){auto boss=cube::CreatureFactory::SpawnBoss(site,region,stars,race);if(boss){m_BossZone=cube::Zone::ZoneCoordsFromDots(site);m_SpawnedBosses.push_back({boss->id,boss});m_LakeBossVisits.push_back(key);}}
    }
    FILE* file=nullptr;fopen_s(&file,"Mods\\AquaticPopulation.log","a");if(file){fprintf(file,"Lake encounter: center=(%d,%d) hostile race=%d members=%zu\n",lake.x,lake.y,race,m_SpawnedCreatures.back().creature_ids.size());fclose(file);}
-   state.next_spawn=m_CurrentTime+(time_t)WATER_ZONE_RESPAWN_INTERVAL;
-   return;
+   state.populated=true;state.emptySince=0;
+   total += (int)m_SpawnedCreatures.back().creature_ids.size();
+   if (++schoolsCreated >= 4) return;
+   continue;
   }
-		if (!Helper::FindWaterColumnSpawnPosition(&spawn)) continue;
+		if (state.hasAnchor) spawn=state.anchor;
+        else {
+            // Anchor to the actual loaded water surface.
+            long long height;
+            auto zone=world->GetZone(state.zone);if(!zone)continue;
+            auto& field=zone->fields[(int)pymod(blockX,64)*64+(int)pymod(blockY,64)];
+            long long top=std::isfinite(field.field_8)?(long long)std::floor(field.field_8)+4:field.base_z+(long long)field.blocks.size();
+            if(!FindWaterSpawnHeight(std::max<long long>(0,top), &height, [&](long long z){return z>=field.base_z && world->GetBlockInterpolated(LongVector3(blockX,blockY,z)).type==cube::Block::Water;}))continue;
+            spawn.z=height*cube::DOTS_PER_BLOCK+cube::DOTS_PER_BLOCK/2;
+            state.anchor=spawn;state.hasAnchor=true;
+        }
 		IntVector2 region;
 		int stars;
 		GetLocalEnemyProfile(spawn, &region, &stars);
@@ -459,7 +501,7 @@ void cube::DivingEvent::SpawnFishes(const LongVector3& position)
 			positions.push_back(member);
 		}
 		if (positions.size() < 2) continue;
-		int species = Helper::RandomInt() % 13; // Factory index, chosen once for the whole group.
+		int species = WaterSiteSpecies(hash,OceanSite(world,spawn)); // Factory index, chosen once for the whole group.
 		SpawnMoment school;
 		school.position = spawn;
 		for (const auto& member : positions)
@@ -470,8 +512,9 @@ void cube::DivingEvent::SpawnFishes(const LongVector3& position)
 		if (school.creature_ids.empty()) continue;
 		m_SpawnedCreatures.push_back(std::move(school));
 		{FILE*file=nullptr;fopen_s(&file,"Mods\\AquaticPopulation.log","a");if(file){fprintf(file,"Spawned school: factory species=%d members=%zu near chunk=(%d,%d)\n",species,m_SpawnedCreatures.back().creature_ids.size(),state.zone.x,state.zone.y);fclose(file);}}
-		state.next_spawn = m_CurrentTime + (time_t)WATER_ZONE_RESPAWN_INTERVAL;
-		return; // At most one same-species school per five-second pass.
+		state.populated = true;state.emptySince=0;
+        total += (int)m_SpawnedCreatures.back().creature_ids.size();
+        if (++schoolsCreated >= 4) return; // Bound activation work without a spawn lottery.
 	}
 }
 
@@ -593,7 +636,7 @@ void cube::DivingEvent::SpawnBoss(const LongVector3& position)
 		IntVector2 region;
 		int stars;
 		GetLocalEnemyProfile(spawn, &region, &stars);
-		auto boss = cube::CreatureFactory::SpawnBoss(spawn, region, stars);
+		auto boss = cube::CreatureFactory::SpawnBoss(spawn, region, stars, -1, OceanSite(game->world,spawn));
 		if (!boss) return;
 		m_BossZone = zone;
 		m_SpawnedBosses.push_back({ boss->id, boss });
