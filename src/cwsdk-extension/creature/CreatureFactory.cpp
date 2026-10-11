@@ -10,82 +10,66 @@
 
 static std::vector<__int64> s_InvicibleIds;
 
-void cube::CreatureFactory::AddInvisID(__int64 id)
-{
-	for (auto i : s_InvicibleIds)
-	{
-		if (i == id)
-		{
-			return;
-		}
-	}
-	s_InvicibleIds.push_back(id);
+void cube::CreatureFactory::AddInvisID(__int64 id) {
+    for (auto i : s_InvicibleIds) {
+        if (i == id) {
+            return;
+        }
+    }
+    s_InvicibleIds.push_back(id);
 }
 
-void cube::CreatureFactory::PrintInvisIDs()
-{
+void cube::CreatureFactory::PrintInvisIDs() {}
+
+__int64 cube::CreatureFactory::CheckAndUpdateID(__int64 id) {
+    cube::Game *game = cube::GetGame();
+    if (!game->host.running) {
+        return id;
+    }
+
+    auto map = &game->host.world.id_to_creature_map;
+    auto list = &game->host.world.creatures;
+
+    auto local_list = &game->world->creatures;
+
+    if (map->find(id) == map->end()) {
+        for (auto creature : *list) {
+            if (creature->id == id) {
+                AddInvisID(id);
+                __int64 newId = GenerateId();
+                creature->id = newId;
+                map->insert_or_assign(newId, creature);
+                return newId;
+            }
+        }
+
+        for (auto creature : *local_list) {
+            if (creature->id == id) {
+                creature->entity_data.HP = 0;
+            }
+        }
+    }
+
+    return id;
 }
 
-__int64 cube::CreatureFactory::CheckAndUpdateID(__int64 id)
-{
-	cube::Game* game = cube::GetGame();
-	if (!game->host.running)
-	{
-		return id;
-	}
-
-	auto map = &game->host.world.id_to_creature_map;
-	auto list = &game->host.world.creatures;
-
-	auto local_list = &game->world->creatures;
-
-	if (map->find(id) == map->end())
-	{
-		for (auto creature : *list)
-		{
-			if (creature->id == id)
-			{
-				AddInvisID(id);
-				__int64 newId = GenerateId();
-				creature->id = newId;
-				map->insert_or_assign(newId, creature);
-				return newId;
-			}
-		}
-
-		for (auto creature : *local_list)
-		{
-			if (creature->id == id)
-			{
-				creature->entity_data.HP = 0;
-			}
-		}
-	}
-
-	return id;
-}
-
-__int64 cube::CreatureFactory::GenerateId()
-{
-	cube::Game* game = cube::GetGame();
-	auto list = &game->host.world.creatures;
-	__int64 min = LONG_LONG_MAX;
-	for (auto creature : *list)
-	{
-		long long id = creature->id;
-		if (id >= 0 && id < 1000)
-		{
-			continue;
-		}
-		min = id < min ? id : min;
-	}
-	min--;
-	if (std::abs(min) <= 1)
-	{
-		return -2;
-	}
-	return min;
-	/*const static bool DEBUG_ID_GENERATION = false;
+__int64 cube::CreatureFactory::GenerateId() {
+    cube::Game *game = cube::GetGame();
+    auto list = &game->host.world.creatures;
+    __int64 min = LONG_LONG_MAX;
+    for (auto creature : *list) {
+        long long id = creature->id;
+        if (id >= 0 && id < 1000) {
+            continue;
+        }
+        min = id < min ? id : min;
+    }
+    min--;
+    if (std::abs(min) <= 1) {
+        return -2;
+    }
+    return min;
+    /*const static bool DEBUG_ID_GENERATION = false;
 	cube::Game* game = cube::GetGame();
 
 	auto map = &game->host.world.id_to_creature_map;
@@ -144,66 +128,63 @@ __int64 cube::CreatureFactory::GenerateId()
 	*/
 }
 
-void cube::CreatureFactory::SetAppearance(cube::Creature* creature, int entityType, int entityBehaviour, int level)
-{
-	creature->entity_data.race = entityType;
-	creature->entity_data.hostility_type = entityBehaviour;
-	creature->entity_data.level = level;
-	((void (*)(cube::World*, int, cube::Creature*))CWOffset(0x2B67B0))(&cube::GetGame()->host.world, 0, creature);
+void cube::CreatureFactory::SetAppearance(cube::Creature *creature, int entityType,
+                                          int entityBehaviour, int level) {
+    creature->entity_data.race = entityType;
+    creature->entity_data.hostility_type = entityBehaviour;
+    creature->entity_data.level = level;
+    ((void (*)(cube::World *, int, cube::Creature *))CWOffset(0x2B67B0))(
+        &cube::GetGame()->host.world, 0, creature);
 }
 
-void cube::CreatureFactory::AddCreatureToWorld(cube::Creature* creature)
-{
-	cube::Game* game = cube::GetGame();
+void cube::CreatureFactory::AddCreatureToWorld(cube::Creature *creature) {
+    cube::Game *game = cube::GetGame();
 
-	game->host.world.creatures.push_back(creature);
-	game->host.world.id_to_creature_map.insert_or_assign(creature->id, creature);
+    game->host.world.creatures.push_back(creature);
+    game->host.world.id_to_creature_map.insert_or_assign(creature->id, creature);
 }
 
-cube::Creature* cube::CreatureFactory::SpawnCreature(const LongVector3& position, const IntVector2& region, int entityType, int entityBehaviour, int level)
-{
-	cube::Creature* creature = cube::Creature::Create(cube::CreatureFactory::GenerateId());
-	if (creature != nullptr)
-	{
-		creature->entity_data.position = position;
-		creature->entity_data.current_region = region;
-		creature->entity_data.yaw = Helper::RandomZeroToOne() * 360;
-		cube::CreatureFactory::SetAppearance(creature, entityType, entityBehaviour, level);
+cube::Creature *cube::CreatureFactory::SpawnCreature(const LongVector3 &position,
+                                                     const IntVector2 &region, int entityType,
+                                                     int entityBehaviour, int level) {
+    cube::Creature *creature = cube::Creature::Create(cube::CreatureFactory::GenerateId());
+    if (creature != nullptr) {
+        creature->entity_data.position = position;
+        creature->entity_data.current_region = region;
+        creature->entity_data.yaw = Helper::RandomZeroToOne() * 360;
+        cube::CreatureFactory::SetAppearance(creature, entityType, entityBehaviour, level);
 
-		auto inv = &creature->inventory_tabs;
-		for (auto& vector : *inv)
-		{
-			for (auto& itemstack : vector)
-			{
-				itemstack.item.region = creature->entity_data.current_region;
-			}
-		}
-		cube::CreatureFactory::AddCreatureToWorld(creature);
-	}
-	return creature;
+        auto inv = &creature->inventory_tabs;
+        for (auto &vector : *inv) {
+            for (auto &itemstack : vector) {
+                itemstack.item.region = creature->entity_data.current_region;
+            }
+        }
+        cube::CreatureFactory::AddCreatureToWorld(creature);
+    }
+    return creature;
 }
 
-cube::Creature* cube::CreatureFactory::SpawnChest(const LongVector3& position, const IntVector2& region, int chestType, int level)
-{
-	if (chestType < 0 || chestType >= 4)
-	{
-		return nullptr;
-	}
+cube::Creature *cube::CreatureFactory::SpawnChest(const LongVector3 &position,
+                                                  const IntVector2 &region, int chestType,
+                                                  int level) {
+    if (chestType < 0 || chestType >= 4) {
+        return nullptr;
+    }
 
-	if (level < 0)
-	{
-		level = Helper::RandomZeroToOne() * 6;
-	}
+    if (level < 0) {
+        level = Helper::RandomZeroToOne() * 6;
+    }
 
-	cube::Creature* creature = SpawnCreature(position, region, 181 + chestType, (int)cube::Enums::EntityBehaviour::ExamineObject, level);
-	if (creature != nullptr)
-	{
-		creature->entity_data.binary_toggles |= 1 << (int)cube::Enums::StateFlags::ActiveLantern;
-		creature->entity_data.binary_toggles |= 1 << (int)cube::Enums::StateFlags::VisibleOnMap;
-		creature->entity_data.interaction_state = 1;
-	}
+    cube::Creature *creature = SpawnCreature(
+        position, region, 181 + chestType, (int)cube::Enums::EntityBehaviour::ExamineObject, level);
+    if (creature != nullptr) {
+        creature->entity_data.binary_toggles |= 1 << (int)cube::Enums::StateFlags::ActiveLantern;
+        creature->entity_data.binary_toggles |= 1 << (int)cube::Enums::StateFlags::VisibleOnMap;
+        creature->entity_data.interaction_state = 1;
+    }
 
-	return creature;
+    return creature;
 }
 
 /*
@@ -213,143 +194,130 @@ cube::Creature* cube::CreatureFactory::SpawnChest(const LongVector3& position, c
 * @param	{int}					level		The level of the creature to spawn. If -1, a random level will be assigned.
 * @param	{int}					friendly	If the creature is friendly or not [0 = hostile, 1 = friendly]. If -1, it will be random.
 */
-cube::Creature* cube::CreatureFactory::SpawnFish(const LongVector3& position, const IntVector2& region, int entityType, int level, int friendly)
-{
-	const static int ENTITY_COUNT = 13;
-	const static int MAX_LEVEL = 5;
-	const static int ENTITY_TYPES[ENTITY_COUNT] = {
-		106,
-		107,
-		145,
-		146,
-		147,
-		148,
-		149,
-		150,
-		152,
-		153,
-		154,
-		155,
-		295,
-	};
+cube::Creature *cube::CreatureFactory::SpawnFish(const LongVector3 &position,
+                                                 const IntVector2 &region, int entityType,
+                                                 int level, int friendly) {
+    const static int ENTITY_COUNT = 13;
+    const static int MAX_LEVEL = 5;
+    const static int ENTITY_TYPES[ENTITY_COUNT] = {
+        106, 107, 145, 146, 147, 148, 149, 150, 152, 153, 154, 155, 295,
+    };
 
-	// Todo: Fix randomness
-	int random = std::rand();
-	if (entityType == -1)
-	{
-		entityType = random % ENTITY_COUNT;
-	}
+    // Todo: Fix randomness
+    int random = std::rand();
+    if (entityType == -1) {
+        entityType = random % ENTITY_COUNT;
+    }
 
-	// Todo: Fix random leveling to spawn more lowered leveled ones
-	if (level == -1)
-	{
-		level = random % MAX_LEVEL;
-	}
+    // Todo: Fix random leveling to spawn more lowered leveled ones
+    if (level == -1) {
+        level = random % MAX_LEVEL;
+    }
 
-	if (friendly == -1)
-	{
-		friendly = random % 2;
-	}
+    if (friendly == -1) {
+        friendly = random % 2;
+    }
 
-	cube::Creature* creature = SpawnCreature(
-		position,
-		region,
-		ENTITY_TYPES[entityType],
-		(int)(AquaticPassive(ENTITY_TYPES[entityType]) ? cube::Enums::EntityBehaviour::Passive : cube::Enums::EntityBehaviour::Hostile),
-		level
-	);
+    cube::Creature *creature = SpawnCreature(position, region, ENTITY_TYPES[entityType],
+                                             (int)(AquaticPassive(ENTITY_TYPES[entityType])
+                                                       ? cube::Enums::EntityBehaviour::Passive
+                                                       : cube::Enums::EntityBehaviour::Hostile),
+                                             level);
 
-	if (creature != nullptr)
-	{
-		if(AquaticPassive(ENTITY_TYPES[entityType]))creature->entity_data.appearance.flags2 &= ~(1 << (int)cube::Enums::AppearanceModifiers::IsFriendly);
-		creature->entity_data.HP = creature->GetMaxHP();
-	}
+    if (creature != nullptr) {
+        if (AquaticPassive(ENTITY_TYPES[entityType]))
+            creature->entity_data.appearance.flags2 &=
+                ~(1 << (int)cube::Enums::AppearanceModifiers::IsFriendly);
+        creature->entity_data.HP = creature->GetMaxHP();
+    }
 
-	return creature;
+    return creature;
 }
 
-cube::Creature* cube::CreatureFactory::SpawnBoss(const LongVector3& position, const IntVector2& region, int level, int lakeRace, bool ocean)
-{
-	int bossType = cube::Helper::RandomInt() % (sizeof(AquaticBosses)/sizeof(*AquaticBosses));
-	if (!ocean && AquaticBosses[bossType].race == 107) bossType = cube::Helper::RandomInt() % 4;
-	auto selected = AquaticBosses[bossType];
-	if(lakeRace!=-1){if(!LakeEncounterRace(lakeRace))return nullptr;selected={lakeRace,2.f};}
+cube::Creature *cube::CreatureFactory::SpawnBoss(const LongVector3 &position,
+                                                 const IntVector2 &region, int level, int lakeRace,
+                                                 bool ocean) {
+    int bossType = cube::Helper::RandomInt() % (sizeof(AquaticBosses) / sizeof(*AquaticBosses));
+    if (!ocean && AquaticBosses[bossType].race == 107)
+        bossType = cube::Helper::RandomInt() % 4;
+    auto selected = AquaticBosses[bossType];
+    if (lakeRace != -1) {
+        if (!LakeEncounterRace(lakeRace))
+            return nullptr;
+        selected = {lakeRace, 2.f};
+    }
 
-	if (level < 0) level = 3 + cube::Helper::RandomInt() % 3;
-	cube::Creature* boss = SpawnCreature(position, region, selected.race, (int)cube::Enums::EntityBehaviour::Hostile, level);
-	if (boss == nullptr)
-	{
-		return boss;
-	}
+    if (level < 0)
+        level = 3 + cube::Helper::RandomInt() % 3;
+    cube::Creature *boss = SpawnCreature(position, region, selected.race,
+                                         (int)cube::Enums::EntityBehaviour::Hostile, level);
+    if (boss == nullptr) {
+        return boss;
+    }
 
-	int random = cube::Helper::RandomInt() % 100;
-	if (random < 60)
-	{
-		boss->entity_data.appearance.flags2 |= 1 << (int)cube::Enums::AppearanceModifiers::IsMiniBoss;
-	}
+    int random = cube::Helper::RandomInt() % 100;
+    if (random < 60) {
+        boss->entity_data.appearance.flags2 |= 1
+                                               << (int)cube::Enums::AppearanceModifiers::IsMiniBoss;
+    }
 
-	if (random > 40)
-	{
-		boss->entity_data.appearance.flags2 |= 1 << (int)cube::Enums::AppearanceModifiers::IsBoss;
-	}
+    if (random > 40) {
+        boss->entity_data.appearance.flags2 |= 1 << (int)cube::Enums::AppearanceModifiers::IsBoss;
+    }
 
-	if (random % 4 == 0)
-	{
-		boss->entity_data.appearance.flags2 |= 1 << (int)cube::Enums::AppearanceModifiers::IsNamedBoss;
-	}
+    if (random % 4 == 0) {
+        boss->entity_data.appearance.flags2 |=
+            1 << (int)cube::Enums::AppearanceModifiers::IsNamedBoss;
+    }
 
-	if(lakeRace!=-1){
-		boss->entity_data.appearance.flags2 &= ~(1 << (int)cube::Enums::AppearanceModifiers::IsMiniBoss);
-		boss->entity_data.appearance.flags2 |= 1 << (int)cube::Enums::AppearanceModifiers::IsBoss;
-	}
-	boss->entity_data.binary_toggles |= 1 << (int)cube::Enums::StateFlags::VisibleOnMap;
-	boss->entity_data.HP = boss->GetMaxHP();
+    if (lakeRace != -1) {
+        boss->entity_data.appearance.flags2 &=
+            ~(1 << (int)cube::Enums::AppearanceModifiers::IsMiniBoss);
+        boss->entity_data.appearance.flags2 |= 1 << (int)cube::Enums::AppearanceModifiers::IsBoss;
+    }
+    boss->entity_data.binary_toggles |= 1 << (int)cube::Enums::StateFlags::VisibleOnMap;
+    boss->entity_data.HP = boss->GetMaxHP();
 
-	boss->entity_data.appearance.graphics_scale *= selected.scale;
-	boss->entity_data.appearance.hitbox_scale *= selected.scale;
-	boss->entity_data.appearance.physics_scale *= selected.scale;
+    boss->entity_data.appearance.graphics_scale *= selected.scale;
+    boss->entity_data.appearance.hitbox_scale *= selected.scale;
+    boss->entity_data.appearance.physics_scale *= selected.scale;
 
-	return boss;
+    return boss;
 }
 
-std::vector<cube::Creature*> cube::CreatureFactory::SpawnFishes(int amount, long long range)
-{
-	std::vector<cube::Creature*> creatures;
+std::vector<cube::Creature *> cube::CreatureFactory::SpawnFishes(int amount, long long range) {
+    std::vector<cube::Creature *> creatures;
 
-	if (amount <= 0)
-	{
-		return creatures;
-	}
+    if (amount <= 0) {
+        return creatures;
+    }
 
-	cube::Creature* player = cube::GetGame()->GetPlayer();
-	LongVector3 position = player->entity_data.position;
-	for (int i = 0; i < amount; i++)
-	{
-		LongVector3 offset = cube::CreatureFactory::GetRandomOffset(range);
-		offset.x += position.x;
-		offset.y += position.y;
-		offset.z += position.z;
-		if (Helper::FindWaterSpawnPosition(&offset))
-		{
-			cube::Creature* creature = cube::CreatureFactory::SpawnFish(offset, player->entity_data.current_region, -1, -1, 0);
-			if (creature != nullptr)
-			{
-				creatures.push_back(creature);
-			}
-		}
-	}
+    cube::Creature *player = cube::GetGame()->GetPlayer();
+    LongVector3 position = player->entity_data.position;
+    for (int i = 0; i < amount; i++) {
+        LongVector3 offset = cube::CreatureFactory::GetRandomOffset(range);
+        offset.x += position.x;
+        offset.y += position.y;
+        offset.z += position.z;
+        if (Helper::FindWaterSpawnPosition(&offset)) {
+            cube::Creature *creature = cube::CreatureFactory::SpawnFish(
+                offset, player->entity_data.current_region, -1, -1, 0);
+            if (creature != nullptr) {
+                creatures.push_back(creature);
+            }
+        }
+    }
 
-	return creatures;
+    return creatures;
 }
 
-LongVector3 cube::CreatureFactory::GetRandomOffset(long long range)
-{
-	//auto u = RandomZeroToOne() + RandomZeroToOne();
-	auto t = Helper::RandomZeroToOne() * 2 * 3.14f;
-	//auto r = u > 1.0f ? 2 - u : u;
+LongVector3 cube::CreatureFactory::GetRandomOffset(long long range) {
+    //auto u = RandomZeroToOne() + RandomZeroToOne();
+    auto t = Helper::RandomZeroToOne() * 2 * 3.14f;
+    //auto r = u > 1.0f ? 2 - u : u;
 
-	auto rr = range;
-	auto cost = cos(t);
-	auto sint = sin(t);
-	return LongVector3(rr * cost, rr * sint, rr * cost * sint);
+    auto rr = range;
+    auto cost = cos(t);
+    auto sint = sin(t);
+    return LongVector3(rr * cost, rr * sint, rr * cost * sint);
 }

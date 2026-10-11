@@ -109,124 +109,129 @@
 
 #include "steam/steam_api_common.h"
 
-void* CWBase();
-void* CWOffset(size_t offset);
+void *CWBase();
+void *CWOffset(size_t offset);
 
 EXPORT void ModPreInitialize();
 EXPORT int ModMajorVersion();
 EXPORT int ModMinorVersion();
 
-void WriteByte(void* location, char val);
-void WriteFarJMP(void* source, void* destination);
+void WriteByte(void *location, char val);
+void WriteFarJMP(void *source, void *destination);
 
-__declspec(noinline) void* operator new(size_t size);
-__declspec(noinline) void* operator new[](size_t size);
-__declspec(noinline) void operator delete(void* ptr) noexcept;
-__declspec(noinline) void operator delete[](void* ptr) noexcept;
+__declspec(noinline) void *operator new(size_t size);
+__declspec(noinline) void *operator new[](size_t size);
+__declspec(noinline) void operator delete(void *ptr) noexcept;
+__declspec(noinline) void operator delete[](void *ptr) noexcept;
 
 class GenericMod {
-    public:
-        enum Priority : u8 {
-            VeryHighPriority = 0,
-            HighPriority = 1,
-            NormalPriority = 2,
-            LowPriority = 3,
-            VeryLowPriority = 4
-        };
+  public:
+    enum Priority : u8 {
+        VeryHighPriority = 0,
+        HighPriority = 1,
+        NormalPriority = 2,
+        LowPriority = 3,
+        VeryLowPriority = 4
+    };
 
-        // Used for registering to mod callbacks. The callbacks are defined in the CWSDK.
-        virtual void Initialize() {}
+    // Used for registering to mod callbacks. The callbacks are defined in the CWSDK.
+    virtual void Initialize() {}
 
-        Priority OnChatPriority = NormalPriority;
-        virtual int OnChat(std::wstring* message) { return 0; }
+    Priority OnChatPriority = NormalPriority;
+    virtual int OnChat(std::wstring *message) {
+        return 0;
+    }
 
-        Priority OnCheckInventoryFullPriority = NormalPriority;
-        virtual int OnCheckInventoryFull(cube::Creature* player, cube::Item* item) { return 0; }
+    Priority OnCheckInventoryFullPriority = NormalPriority;
+    virtual int OnCheckInventoryFull(cube::Creature *player, cube::Item *item) {
+        return 0;
+    }
 
-        Priority OnP2PRequestPriority = NormalPriority;
-        virtual int OnP2PRequest(uint64_t steamID) { return 0; }
+    Priority OnP2PRequestPriority = NormalPriority;
+    virtual int OnP2PRequest(uint64_t steamID) {
+        return 0;
+    }
 
-        Priority OnGameTickPriority = NormalPriority;
-        virtual void OnGameTick(cube::Game* game) {}
+    Priority OnGameTickPriority = NormalPriority;
+    virtual void OnGameTick(cube::Game *game) {}
 
-        Priority OnZoneGeneratedPriority = NormalPriority;
-        virtual void OnZoneGenerated(cube::Zone* zone) {}
+    Priority OnZoneGeneratedPriority = NormalPriority;
+    virtual void OnZoneGenerated(cube::Zone *zone) {}
 
-        Priority OnZoneDestroyPriority = NormalPriority;
-        virtual void OnZoneDestroy(cube::Zone* zone) {}
+    Priority OnZoneDestroyPriority = NormalPriority;
+    virtual void OnZoneDestroy(cube::Zone *zone) {}
 
-        Priority OnWindowProcPriority = NormalPriority;
-        virtual int OnWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) { return 0; }
+    Priority OnWindowProcPriority = NormalPriority;
+    virtual int OnWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
+        return 0;
+    }
 
-        Priority OnGetKeyboardStatePriority = NormalPriority;
-        virtual void OnGetKeyboardState(BYTE* diKeys) {}
+    Priority OnGetKeyboardStatePriority = NormalPriority;
+    virtual void OnGetKeyboardState(BYTE *diKeys) {}
 
-        Priority OnGetMouseStatePriority = NormalPriority;
-        virtual void OnGetMouseState(DIMOUSESTATE* diMouse) {}
+    Priority OnGetMouseStatePriority = NormalPriority;
+    virtual void OnGetMouseState(DIMOUSESTATE *diMouse) {}
 
-        Priority OnPresentPriority = NormalPriority;
-        virtual void OnPresent(IDXGISwapChain* SwapChain, UINT SyncInterval, UINT Flags) {}
+    Priority OnPresentPriority = NormalPriority;
+    virtual void OnPresent(IDXGISwapChain *SwapChain, UINT SyncInterval, UINT Flags) {}
 
-        Priority OnCreatureArmorCalculatedPriority = NormalPriority;
-        virtual void OnCreatureArmorCalculated(cube::Creature* creature, float* armor) {}
+    Priority OnCreatureArmorCalculatedPriority = NormalPriority;
+    virtual void OnCreatureArmorCalculated(cube::Creature *creature, float *armor) {}
 
-        Priority OnCreatureCriticalCalculatedPriority = NormalPriority;
-        virtual void OnCreatureCriticalCalculated(cube::Creature* creature, float* critical) {}
+    Priority OnCreatureCriticalCalculatedPriority = NormalPriority;
+    virtual void OnCreatureCriticalCalculated(cube::Creature *creature, float *critical) {}
 
-        Priority OnCreatureAttackPowerCalculatedPriority = NormalPriority;
-        virtual void OnCreatureAttackPowerCalculated(cube::Creature* creature, float* power) {}
+    Priority OnCreatureAttackPowerCalculatedPriority = NormalPriority;
+    virtual void OnCreatureAttackPowerCalculated(cube::Creature *creature, float *power) {}
 
-        Priority OnCreatureSpellPowerCalculatedPriority = NormalPriority;
-        virtual void OnCreatureSpellPowerCalculated(cube::Creature* creature, float* power) {}
+    Priority OnCreatureSpellPowerCalculatedPriority = NormalPriority;
+    virtual void OnCreatureSpellPowerCalculated(cube::Creature *creature, float *power) {}
 
-        Priority OnCreatureHasteCalculatedPriority = NormalPriority;
-        virtual void OnCreatureHasteCalculated(cube::Creature* creature, float* haste) {}
+    Priority OnCreatureHasteCalculatedPriority = NormalPriority;
+    virtual void OnCreatureHasteCalculated(cube::Creature *creature, float *haste) {}
 
-        Priority OnCreatureHPCalculatedPriority = NormalPriority;
-        virtual void OnCreatureHPCalculated(cube::Creature* creature, float* hp) {}
+    Priority OnCreatureHPCalculatedPriority = NormalPriority;
+    virtual void OnCreatureHPCalculated(cube::Creature *creature, float *hp) {}
 
-        Priority OnCreatureResistanceCalculatedPriority = NormalPriority;
-        virtual void OnCreatureResistanceCalculated(cube::Creature* creature, float* resistance) {}
+    Priority OnCreatureResistanceCalculatedPriority = NormalPriority;
+    virtual void OnCreatureResistanceCalculated(cube::Creature *creature, float *resistance) {}
 
-        Priority OnCreatureRegenerationCalculatedPriority = NormalPriority;
-        virtual void OnCreatureRegenerationCalculated(cube::Creature* creature, float* regeneration) {}
+    Priority OnCreatureRegenerationCalculatedPriority = NormalPriority;
+    virtual void OnCreatureRegenerationCalculated(cube::Creature *creature, float *regeneration) {}
 
-        Priority OnCreatureManaGenerationCalculatedPriority = NormalPriority;
-        virtual void OnCreatureManaGenerationCalculated(cube::Creature* creature, float* manaGeneration) {}
+    Priority OnCreatureManaGenerationCalculatedPriority = NormalPriority;
+    virtual void OnCreatureManaGenerationCalculated(cube::Creature *creature,
+                                                    float *manaGeneration) {}
 
-        Priority OnChunkRemeshPriority = NormalPriority;
-        virtual void OnChunkRemesh(cube::Zone* zone) {}
+    Priority OnChunkRemeshPriority = NormalPriority;
+    virtual void OnChunkRemesh(cube::Zone *zone) {}
 
-        Priority OnChunkRemeshedPriority = NormalPriority;
-        virtual void OnChunkRemeshed(cube::Zone* zone) {}
+    Priority OnChunkRemeshedPriority = NormalPriority;
+    virtual void OnChunkRemeshed(cube::Zone *zone) {}
 
-        enum DeathType : __int32 {
-            COMBAT = 0,
-            DROWN,
-            FALL
-        };
+    enum DeathType : __int32 { COMBAT = 0, DROWN, FALL };
 
-        Priority OnPlayerDeathPriority = NormalPriority;
-        virtual void OnPlayerDeath(cube::Game* game, cube::Creature* player, DeathType type) {}
+    Priority OnPlayerDeathPriority = NormalPriority;
+    virtual void OnPlayerDeath(cube::Game *game, cube::Creature *player, DeathType type) {}
 
-        Priority OnCreatureDeathPriority = NormalPriority;
-        virtual void OnCreatureDeath(cube::Game* game, cube::Creature* creature, cube::Creature* attacker) {}
+    Priority OnCreatureDeathPriority = NormalPriority;
+    virtual void OnCreatureDeath(cube::Game *game, cube::Creature *creature,
+                                 cube::Creature *attacker) {}
 
-        Priority OnGameUpdatePriority = NormalPriority;
-        virtual void OnGameUpdate(cube::Game* game) {}
+    Priority OnGameUpdatePriority = NormalPriority;
+    virtual void OnGameUpdate(cube::Game *game) {}
 
-        Priority OnGetItemBuyingPricePriority = NormalPriority;
-        virtual void OnGetItemBuyingPrice(cube::Item* item, int* price) {}
+    Priority OnGetItemBuyingPricePriority = NormalPriority;
+    virtual void OnGetItemBuyingPrice(cube::Item *item, int *price) {}
 
-        Priority OnGetItemSellingPricePriority = NormalPriority;
-        virtual void OnGetItemSellingPrice(cube::Item* item, int* price) {}
+    Priority OnGetItemSellingPricePriority = NormalPriority;
+    virtual void OnGetItemSellingPrice(cube::Item *item, int *price) {}
 
-        //Priority OnGetItemRarityModifierPriority = NormalPriority;
-        //virtual void OnGetItemRarityModifier(cube::Item* item, cube::Creature* creature, int spirits, float* modifier) {}
+    //Priority OnGetItemRarityModifierPriority = NormalPriority;
+    //virtual void OnGetItemRarityModifier(cube::Item* item, cube::Creature* creature, int spirits, float* modifier) {}
 
-        #include "VtablePadding.h"
+#include "VtablePadding.h"
 };
-
 
 static_assert(sizeof(GenericMod) == 0x428, "API 7.3 GenericMod layout mismatch");
 

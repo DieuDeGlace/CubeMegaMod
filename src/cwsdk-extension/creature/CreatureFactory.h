@@ -4,31 +4,34 @@
 
 const static long long VISION_RANGE = 2000000;
 
-namespace cube
-{
-	class Creature;
+namespace cube {
+class Creature;
 
-	class CreatureFactory
-	{
-	public:
-		static void AddInvisID(__int64 id);
-		static void PrintInvisIDs();
+class CreatureFactory {
+  public:
+    static void AddInvisID(__int64 id);
+    static void PrintInvisIDs();
 
-		static __int64 CheckAndUpdateID(__int64 id);
+    static __int64 CheckAndUpdateID(__int64 id);
 
-		static long long GenerateId();
+    static long long GenerateId();
 
-		static void SetAppearance(cube::Creature* creature, int entityType, int entityBehaviour, int level);
+    static void SetAppearance(cube::Creature *creature, int entityType, int entityBehaviour,
+                              int level);
 
-		static void AddCreatureToWorld(cube::Creature* creature);
+    static void AddCreatureToWorld(cube::Creature *creature);
 
-		static cube::Creature* SpawnCreature(const LongVector3& position, const IntVector2& region, int entityType, int entityBehaviour, int level);
-		static cube::Creature* SpawnChest(const LongVector3& position, const IntVector2& region, int chestType, int level = -1);
-		static cube::Creature* SpawnFish(const LongVector3& position, const IntVector2& region, int entityType = -1, int level = -1, int friendly = -1);
-		static cube::Creature* SpawnBoss(const LongVector3& position, const IntVector2& region, int level = -1, int lakeRace = -1, bool ocean = true);
+    static cube::Creature *SpawnCreature(const LongVector3 &position, const IntVector2 &region,
+                                         int entityType, int entityBehaviour, int level);
+    static cube::Creature *SpawnChest(const LongVector3 &position, const IntVector2 &region,
+                                      int chestType, int level = -1);
+    static cube::Creature *SpawnFish(const LongVector3 &position, const IntVector2 &region,
+                                     int entityType = -1, int level = -1, int friendly = -1);
+    static cube::Creature *SpawnBoss(const LongVector3 &position, const IntVector2 &region,
+                                     int level = -1, int lakeRace = -1, bool ocean = true);
 
-		static std::vector<cube::Creature*> SpawnFishes(int amount, long long range = VISION_RANGE);
+    static std::vector<cube::Creature *> SpawnFishes(int amount, long long range = VISION_RANGE);
 
-		static LongVector3 GetRandomOffset(long long range = VISION_RANGE);
-	};
-}
+    static LongVector3 GetRandomOffset(long long range = VISION_RANGE);
+};
+} // namespace cube

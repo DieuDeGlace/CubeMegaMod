@@ -27,107 +27,103 @@ const static auto BOUNDS_CHECK_DIST_MULTIPLIER = 2;
 const static long long CREATURE_SPAWN_RANGE = 5000000;
 const static double BOUNDS_CHECK_INTERVAL = 5;
 
-struct IdCreaturePair
-{
-	__int64 id;
-	cube::Creature* creature;
-	bool retiring = false;
- bool hasRoamHome = false;
- LongVector3 roamHome;
-	SwimPoint swimTarget;
-	bool swimming = false;
-	double nextWaterRepair = 0;
- bool waterRecoveryUsed = false;
- bool recoveringWater = false;
- SwimPoint waterRecoveryTarget;
-	bool hasMotionSample = false;
-	SwimPoint lastMotionPosition;
-	unsigned int swimAttempt = 0;
-	double nextSwimPlan = 0;
+struct IdCreaturePair {
+    __int64 id;
+    cube::Creature *creature;
+    bool retiring = false;
+    bool hasRoamHome = false;
+    LongVector3 roamHome;
+    SwimPoint swimTarget;
+    bool swimming = false;
+    double nextWaterRepair = 0;
+    bool waterRecoveryUsed = false;
+    bool recoveringWater = false;
+    SwimPoint waterRecoveryTarget;
+    bool hasMotionSample = false;
+    SwimPoint lastMotionPosition;
+    unsigned int swimAttempt = 0;
+    double nextSwimPlan = 0;
 };
 
-struct SpawnMoment
-{
-	LongVector3 position;
-	int lakeRace = 0;
-	std::vector<IdCreaturePair> creature_ids;
+struct SpawnMoment {
+    LongVector3 position;
+    int lakeRace = 0;
+    std::vector<IdCreaturePair> creature_ids;
 };
 
-struct WaterZonePopulation
-{
-	IntVector2 zone;
-	unsigned int siteProbe = 0;
-	bool populated = false;
-	time_t emptySince = 0;
-	bool hasAnchor = false;
-	LongVector3 anchor;
-	time_t next_spawn = 0;
-	bool boss_attempted = false;
+struct WaterZonePopulation {
+    IntVector2 zone;
+    unsigned int siteProbe = 0;
+    bool populated = false;
+    time_t emptySince = 0;
+    bool hasAnchor = false;
+    LongVector3 anchor;
+    time_t next_spawn = 0;
+    bool boss_attempted = false;
 };
 
-static long long DistanceSquared(const LongVector3& p1, const LongVector3& p2);
+static long long DistanceSquared(const LongVector3 &p1, const LongVector3 &p2);
 
-namespace cube
-{
-	class DivingEvent : public Event
-	{
-	private:
-		cube::Timer* m_ItemEffectTimer;
+namespace cube {
+class DivingEvent : public Event {
+  private:
+    cube::Timer *m_ItemEffectTimer;
 
-		cube::Timer m_SpawnTimer;
-		cube::Timer m_TreasureTimer;
-		cube::Timer m_BossTimer;
-		cube::Timer m_BoundsTimer;
+    cube::Timer m_SpawnTimer;
+    cube::Timer m_TreasureTimer;
+    cube::Timer m_BossTimer;
+    cube::Timer m_BoundsTimer;
 
-		std::vector<SpawnMoment> m_SpawnedCreatures;
-		std::vector<IdCreaturePair> m_SpawnedTreasures;
-		std::vector<IdCreaturePair> m_SpawnedBosses;
-		IntVector2 m_BossZone;
-		std::vector<IntVector2> m_LakeBossVisits;
-		std::vector<WaterZonePopulation> m_WaterZones;
-		std::vector<WaterZonePopulation> m_DormantWaterZones;
-		size_t m_NextWaterZone = 0;
-		std::chrono::steady_clock::time_point m_LastSwimTick = std::chrono::steady_clock::now();
-		double m_SwimTime = 0;
-		double m_NextSwimCheck = 0;
-		double m_NextSwimPlanBurst = 0;
+    std::vector<SpawnMoment> m_SpawnedCreatures;
+    std::vector<IdCreaturePair> m_SpawnedTreasures;
+    std::vector<IdCreaturePair> m_SpawnedBosses;
+    IntVector2 m_BossZone;
+    std::vector<IntVector2> m_LakeBossVisits;
+    std::vector<WaterZonePopulation> m_WaterZones;
+    std::vector<WaterZonePopulation> m_DormantWaterZones;
+    size_t m_NextWaterZone = 0;
+    std::chrono::steady_clock::time_point m_LastSwimTick = std::chrono::steady_clock::now();
+    double m_SwimTime = 0;
+    double m_NextSwimCheck = 0;
+    double m_NextSwimPlanBurst = 0;
 
-		bool* autoGoldUsage;
-		bool m_IsDiving = false;
+    bool *autoGoldUsage;
+    bool m_IsDiving = false;
 
-	public:
-		DivingEvent(bool* autoGoldUsage);
-		~DivingEvent();
+  public:
+    DivingEvent(bool *autoGoldUsage);
+    ~DivingEvent();
 
-		void Update() override;
-		void Abandon();
-	private:
-		void UpdateIds();
-		void SetDiving(bool diving);
+    void Update() override;
+    void Abandon();
 
-		// Consumtion logic
-		void HandleItemEffectTimer();
-		void ConsumeItem();
+  private:
+    void UpdateIds();
+    void SetDiving(bool diving);
 
-		// Fish logic
-		void HandleFishTimer();
-		void UpdateSwimming();
-		void SpawnFishes(const LongVector3& position);
-		void GetLocalEnemyProfile(const LongVector3& position, IntVector2* region, int* stars);
+    // Consumtion logic
+    void HandleItemEffectTimer();
+    void ConsumeItem();
 
-		// Treasure logic
-		void HandleTreasureTimer();
-		void SpawnTreasures(const LongVector3& position);
-		int GenerateChestType();
+    // Fish logic
+    void HandleFishTimer();
+    void UpdateSwimming();
+    void SpawnFishes(const LongVector3 &position);
+    void GetLocalEnemyProfile(const LongVector3 &position, IntVector2 *region, int *stars);
 
-		// Boss logic
-		void HandleBossTimer();
-		void SpawnBoss(const LongVector3& position);
+    // Treasure logic
+    void HandleTreasureTimer();
+    void SpawnTreasures(const LongVector3 &position);
+    int GenerateChestType();
 
-		// Deletion logic
-		void HandleBoundsCheckTimer();
-		void BoundCheckFishes(const LongVector3& position);
-		void BoundCheckTreasures(const LongVector3& position);
-		void BoundCheckBosses(const LongVector3& position);
-	};
-}
+    // Boss logic
+    void HandleBossTimer();
+    void SpawnBoss(const LongVector3 &position);
+
+    // Deletion logic
+    void HandleBoundsCheckTimer();
+    void BoundCheckFishes(const LongVector3 &position);
+    void BoundCheckTreasures(const LongVector3 &position);
+    void BoundCheckBosses(const LongVector3 &position);
+};
+} // namespace cube
