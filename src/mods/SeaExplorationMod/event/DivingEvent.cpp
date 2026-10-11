@@ -185,8 +185,22 @@ void cube::DivingEvent::UpdateSwimming()
  double dt=std::chrono::duration<double>(now-m_LastSwimTick).count();m_LastSwimTick=now;
  dt=(std::min)(.1,(std::max)(0.,dt));m_SwimTime+=dt;
  auto game=cube::GetGame();auto world=game->world;
+ std::vector<SpawnMoment> bossGroups;
+ std::vector<size_t> bossIndices;
+ bossGroups.reserve(m_SpawnedBosses.size());
+ for(size_t i=0;i<m_SpawnedBosses.size();i++){
+  auto& pair=m_SpawnedBosses[i];
+  auto boss=FindResidentWaterEntity(game->host.world.creatures,pair.creature,pair.id);
+  if(!boss||LakeEncounterRace(boss->entity_data.race))continue;
+  if(!pair.hasRoamHome){pair.roamHome=boss->entity_data.position;pair.hasRoamHome=true;}
+  SpawnMoment group;group.position=pair.roamHome;group.creature_ids.push_back(pair);
+  bossGroups.push_back(std::move(group));bossIndices.push_back(i);
+ }
+ std::vector<SpawnMoment*> movementGroups;
+ for(auto& group:m_SpawnedCreatures)movementGroups.push_back(&group);
+ for(auto& group:bossGroups)movementGroups.push_back(&group);
  std::vector<cube::Creature*> tracked;
- for(auto& school:m_SpawnedCreatures)for(auto& pair:school.creature_ids)tracked.push_back(pair.creature);
+ for(auto school:movementGroups)for(auto& pair:school->creature_ids)tracked.push_back(pair.creature);
  std::sort(tracked.begin(),tracked.end(),std::less<cube::Creature*>());
  std::vector<cube::Creature*> residents;
  for(auto creature:game->host.world.creatures)if(std::binary_search(tracked.begin(),tracked.end(),creature,std::less<cube::Creature*>()))residents.push_back(creature);
@@ -203,14 +217,15 @@ void cube::DivingEvent::UpdateSwimming()
  // Planning has a fixed budget; ordinary movement does no path search.
  unsigned plans=check&&m_SwimTime>=m_NextSwimPlanBurst?0:2;
  if(plans==0)m_NextSwimPlanBurst=m_SwimTime+.5;
- for(auto& school:m_SpawnedCreatures){
+ for(auto group:movementGroups){
+  auto& school=*group;
   if(school.lakeRace)continue; // Native ground AI, no fish movement fallback.
   unsigned member=0;
   for(auto& pair:school.creature_ids){
    ++member;auto creature=FindResidentWaterEntity(residents,pair.creature,pair.id);
    if(!creature||pair.retiring||creature->entity_data.HP<=0)continue;
    auto& e=creature->entity_data;auto current=point(e.position);
-   bool nativeMoving=pair.hasMotionSample && SwimDistance(current,pair.lastMotionPosition)>.02;
+   bool nativeMoving=pair.hasMotionSample && std::hypot(current.x-pair.lastMotionPosition.x,current.y-pair.lastMotionPosition.y)>.02;
    pair.lastMotionPosition=current;pair.hasMotionSample=true;
    bool combat=e.current_ability!=0||e.stun_time>0;
    // Native motion/combat owns the actor. Never correct depth during either.
@@ -263,6 +278,7 @@ void cube::DivingEvent::UpdateSwimming()
    e.position=LongVector3((long long)std::llround(next.x*cube::DOTS_PER_BLOCK),(long long)std::llround(next.y*cube::DOTS_PER_BLOCK),(long long)std::llround(next.z*cube::DOTS_PER_BLOCK));
   }
  }
+ for(size_t i=0;i<bossGroups.size();i++)m_SpawnedBosses[bossIndices[i]]=bossGroups[i].creature_ids.front();
 }
 
 void cube::DivingEvent::UpdateIds()

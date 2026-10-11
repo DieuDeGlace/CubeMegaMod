@@ -32,6 +32,8 @@ struct IdCreaturePair
 	__int64 id;
 	cube::Creature* creature;
 	bool retiring = false;
+ bool hasRoamHome = false;
+ LongVector3 roamHome;
 	SwimPoint swimTarget;
 	bool swimming = false;
 	double nextWaterRepair = 0;
