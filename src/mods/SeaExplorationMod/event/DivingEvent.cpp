@@ -243,17 +243,22 @@ void cube::DivingEvent::UpdateSwimming()
     auto hash=WaterPopulationHash((int)std::floor(home.x/64),(int)std::floor(home.y/64),world->seed,pair.swimAttempt++);
     // Shared school heading with small member spacing, constrained to nearby water.
     for(unsigned trial=0;trial<4&&!pair.swimming;trial++){
-     double angle=((hash+trial*16411)%65536)*(6.283185307179586/65536.);
-     double reach=2+(hash%4);
+     double angle=e.yaw*3.141592653589793/180+1.570796326794897+((int)(hash%121)-60)*3.141592653589793/180;
+     if(hash%5==0)angle+=3.141592653589793; // Occasional turn back.
+     angle+=trial*1.570796326794897;
+     double reach=8+(hash%9);
      SwimPoint target{current.x+reach*std::cos(angle),current.y+reach*std::sin(angle),current.z};
-     if(SwimDistance(target,home)>16)target=home;
+     if(SwimDistance(target,home)>32){double distance=SwimDistance(current,home);double t=(std::min)(1.,16./(std::max)(distance,.001));target={current.x+(home.x-current.x)*t,current.y+(home.y-current.y)*t,current.z};}
      if(SwimPathClear(current,target,wet)){pair.swimTarget=target;pair.swimming=true;}
     }
    }
    if(!pair.swimming)continue;
-   auto next=SwimStep(current,pair.swimTarget,dt,AquaticPassive(e.race)?.9:1.3);
-   double wanted=std::atan2(next.x-current.x,-(next.y-current.y))*180/3.141592653589793;
-   double turn=std::remainder(wanted-e.yaw,360.);e.yaw+=(float)SwimClamp(turn,-90*dt,90*dt);
+   double wanted=SwimFacingYaw(current,pair.swimTarget);
+   double turn=std::remainder(wanted-e.yaw,360.);
+   e.yaw+=(float)SwimClamp(turn,-100*dt,100*dt);
+   double remaining=std::remainder(wanted-e.yaw,360.);
+   // Turn first instead of sliding backwards or sideways while rotating.
+   auto next=SwimStep(current,pair.swimTarget,dt,(AquaticPassive(e.race)?1.1:1.5)*SwimForwardAmount(remaining));
    pair.lastMotionPosition=next;
    e.position=LongVector3((long long)std::llround(next.x*cube::DOTS_PER_BLOCK),(long long)std::llround(next.y*cube::DOTS_PER_BLOCK),(long long)std::llround(next.z*cube::DOTS_PER_BLOCK));
   }

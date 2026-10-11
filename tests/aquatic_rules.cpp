@@ -3,6 +3,11 @@
 #include <cassert>
 #include <cstdio>
 int main(){
+ assert(std::abs(std::remainder(SwimFacingYaw({0,0,0},{0,1,0}),360.))<1e-8);
+ assert(std::abs(SwimFacingYaw({0,0,0},{1,0,0})-270)<1e-8);
+ assert(SwimForwardAmount(180)==0&&SwimForwardAmount(90)==0);
+ assert(std::abs(SwimForwardAmount(0)-1)<1e-8);
+
  // Depth recovery advances at a bounded swim speed, never in a whole-depth jump.
  auto recovery=SwimStep(SwimPoint{0,0,8},SwimPoint{0,0,0},.1,.75);
  assert(std::abs(recovery.z-7.925)<1e-8);

@@ -30,3 +30,7 @@ template<class Passable,class Wet>bool SwimRecoverDepth(SwimPoint current,SwimPo
   if(wet(p)){*out=p;return true;}}
  return false;
 }
+
+// Fish model forward is the opposite of the former fallback heading.
+inline double SwimFacingYaw(SwimPoint from,SwimPoint to){return std::atan2(to.x-from.x,-(to.y-from.y))*180/3.141592653589793+180;}
+inline double SwimForwardAmount(double headingError){double a=std::abs(headingError);if(a>=60)return 0;double c=std::cos(a*3.141592653589793/180);return c*c;}
