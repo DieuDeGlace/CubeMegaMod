@@ -226,10 +226,19 @@ void cube::DivingEvent::UpdateSwimming()
    if(!creature||pair.retiring||creature->entity_data.HP<=0)continue;
    auto& e=creature->entity_data;auto current=point(e.position);
    bool nativeMoving=pair.hasMotionSample && std::hypot(current.x-pair.lastMotionPosition.x,current.y-pair.lastMotionPosition.y)>.02;
-   pair.lastMotionPosition=current;pair.hasMotionSample=true;
    bool combat=e.current_ability!=0||e.stun_time>0;
+   // Native idle vertical updates can push terrain-shifted aquatic actors
+   // onto the water surface. Keep the controller's previous depth only during
+   // idle swimming/recovery, never during horizontal native travel or combat.
+   if(!combat&&!nativeMoving&&pair.hasMotionSample&&
+      (pair.recoveringWater||pair.swimming||wet(pair.lastMotionPosition))){
+    current.z=pair.lastMotionPosition.z;
+    e.position.z=(long long)std::llround(current.z*cube::DOTS_PER_BLOCK);
+    e.velocity.z=0;e.acceleration.z=0;
+   }
    // Native motion/combat owns the actor. Never correct depth during either.
-   if(combat||nativeMoving){pair.swimming=false;pair.recoveringWater=false;pair.nextSwimPlan=m_SwimTime+1;continue;}
+   if(combat||nativeMoving){pair.lastMotionPosition=current;pair.hasMotionSample=true;pair.swimming=false;pair.recoveringWater=false;pair.nextSwimPlan=m_SwimTime+1;continue;}
+   pair.lastMotionPosition=current;pair.hasMotionSample=true;
    if(check&&!pair.waterRecoveryUsed&&m_SwimTime>=pair.nextWaterRepair){
     pair.nextWaterRepair=m_SwimTime+2;
     if(!wet(current)){
