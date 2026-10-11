@@ -35,6 +35,9 @@ struct IdCreaturePair
 	SwimPoint swimTarget;
 	bool swimming = false;
 	double nextWaterRepair = 0;
+ bool waterRecoveryUsed = false;
+ bool recoveringWater = false;
+ SwimPoint waterRecoveryTarget;
 	bool hasMotionSample = false;
 	SwimPoint lastMotionPosition;
 	unsigned int swimAttempt = 0;

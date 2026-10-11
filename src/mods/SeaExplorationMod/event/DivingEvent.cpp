@@ -210,23 +210,32 @@ void cube::DivingEvent::UpdateSwimming()
    ++member;auto creature=FindResidentWaterEntity(residents,pair.creature,pair.id);
    if(!creature||pair.retiring||creature->entity_data.HP<=0)continue;
    auto& e=creature->entity_data;auto current=point(e.position);
-   if(check&&e.stun_time<=0&&m_SwimTime>=pair.nextWaterRepair){
-    pair.nextWaterRepair=m_SwimTime+.5;
-    if(!wet(current)){
-     SwimPoint recovered{};
-     auto passable=[&](SwimPoint p){auto key=LongVector3((long long)std::floor(p.x),(long long)std::floor(p.y),(long long)std::floor(p.z));if(!world->GetZone(cube::Zone::ZoneCoordsFromBlocks(key.x,key.y)))return false;auto type=NativeWaterBlock(world,key).type;return type==cube::Block::Air||type==cube::Block::Water;};
-     if(SwimRecoverDepth(current,&recovered,passable,wet)){
-      current=recovered;e.position=LongVector3((long long)std::llround(current.x*cube::DOTS_PER_BLOCK),(long long)std::llround(current.y*cube::DOTS_PER_BLOCK),(long long)std::llround(current.z*cube::DOTS_PER_BLOCK));
-      pair.lastMotionPosition=current;pair.hasMotionSample=true;pair.swimming=false;
-     }
-    }
-   }
    bool nativeMoving=pair.hasMotionSample && SwimDistance(current,pair.lastMotionPosition)>.02;
    pair.lastMotionPosition=current;pair.hasMotionSample=true;
    bool combat=e.current_ability!=0||e.stun_time>0;
-   // Native chasing, fleeing, knockback and wandering always take precedence.
-   if(combat||nativeMoving){pair.swimming=false;pair.nextSwimPlan=m_SwimTime+1;continue;}
-   if(pair.swimming&&SwimDistance(current,pair.swimTarget)<.2){pair.swimming=false;pair.nextSwimPlan=m_SwimTime+.5;}
+   // Native motion/combat owns the actor. Never correct depth during either.
+   if(combat||nativeMoving){pair.swimming=false;pair.recoveringWater=false;pair.nextSwimPlan=m_SwimTime+1;continue;}
+   if(check&&!pair.waterRecoveryUsed&&m_SwimTime>=pair.nextWaterRepair){
+    pair.nextWaterRepair=m_SwimTime+2;
+    if(!wet(current)){
+     auto passable=[&](SwimPoint p){auto key=LongVector3((long long)std::floor(p.x),(long long)std::floor(p.y),(long long)std::floor(p.z));if(!world->GetZone(cube::Zone::ZoneCoordsFromBlocks(key.x,key.y)))return false;auto type=NativeWaterBlock(world,key).type;return type==cube::Block::Air||type==cube::Block::Water;};
+     if(SwimRecoverDepth(current,&pair.waterRecoveryTarget,passable,wet)){
+      pair.waterRecoveryUsed=true;pair.recoveringWater=true;pair.swimming=false;
+     }
+    }
+   }
+   if(pair.recoveringWater){
+    auto next=SwimStep(current,pair.waterRecoveryTarget,dt,.75);
+    auto key=LongVector3((long long)std::floor(next.x),(long long)std::floor(next.y),(long long)std::floor(next.z));
+    if(!world->GetZone(cube::Zone::ZoneCoordsFromBlocks(key.x,key.y))){pair.recoveringWater=false;continue;}
+    auto type=NativeWaterBlock(world,key).type;
+    if(type!=cube::Block::Air&&type!=cube::Block::Water){pair.recoveringWater=false;continue;}
+    e.position=LongVector3((long long)std::llround(next.x*cube::DOTS_PER_BLOCK),(long long)std::llround(next.y*cube::DOTS_PER_BLOCK),(long long)std::llround(next.z*cube::DOTS_PER_BLOCK));
+    pair.lastMotionPosition=next;
+    if(wet(next)||SwimDistance(next,pair.waterRecoveryTarget)<.1){pair.recoveringWater=false;pair.nextSwimPlan=m_SwimTime+1;}
+    continue;
+   }
+   if(pair.swimming&&SwimDistance(current,pair.swimTarget)<.2){pair.swimming=false;pair.nextSwimPlan=m_SwimTime+.8+(unsigned long long)pair.id%17*.1;}
    if(check&&pair.swimming&&!SwimPathClear(current,SwimStep(current,pair.swimTarget,.1,1.5),wet))pair.swimming=false;
    if(check&&!pair.swimming&&m_SwimTime>=pair.nextSwimPlan&&plans<2){
     ++plans;pair.nextSwimPlan=m_SwimTime+2;

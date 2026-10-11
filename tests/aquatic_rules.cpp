@@ -3,6 +3,11 @@
 #include <cassert>
 #include <cstdio>
 int main(){
+ // Depth recovery advances at a bounded swim speed, never in a whole-depth jump.
+ auto recovery=SwimStep(SwimPoint{0,0,8},SwimPoint{0,0,0},.1,.75);
+ assert(std::abs(recovery.z-7.925)<1e-8);
+ assert(SwimDistance(SwimPoint{0,0,8},recovery)<=.07500001);
+
  for(unsigned h=0;h<600;h++){int r=LakeDominantRace(h);assert(LakeEncounterRace(r));assert(!AquaticPassive(r));assert(r==LakeDominantRace(h));}
  assert(LakeDominantRace(0)==106&&LakeDominantRace(1)==86&&LakeDominantRace(2)==37);
  for(int r:{75,107,145,150,31})assert(!LakeEncounterRace(r));
