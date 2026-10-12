@@ -10,6 +10,7 @@
 #include "../cwsdk-extension/helper/Helper.h"
 
 #include "../CubeMod.h"
+#include "../OverworldEventBridge.h"
 
 int ChestInteractionHandler(cube::Game *game, cube::Creature *creature, int type) {
 	for (CubeMod* mod : g_Mods) {
@@ -21,6 +22,10 @@ int ChestInteractionHandler(cube::Game *game, cube::Creature *creature, int type
 }
 
 extern "C" void OnChestInteraction(cube::Game* game, cube::Creature* creature) {
+	if (overworldBridge::ObjectInteraction(game, creature))
+	{
+		return;
+	}
 	int type = creature->entity_data.race - 181;
 	if (!ChestInteractionHandler(game, creature, type))
 	{

@@ -26,3 +26,12 @@ Water schools use a stable 4x4 candidate lattice per loaded chunk and a world-se
 Sea crabs and mermaids are ocean-only, including sea-crab boss selection. Normal lake crab encounters remain. Polar gnoll (an old incorrect aquatic factory entry) is excluded from ambient schools.
 
 Aquatic density/residency update: 18 custom creatures maximum; inland sites use one in three chunks and oceans one in two, with school anchors at least 128/96 blocks apart respectively. Living fish retire when their origin/current chunk unloads, without an extra distance limit. Living populations can populate again on chunk reload; cleared sites retain a ten-minute session cooldown. Neutral fish retain passive behavior without an extra ally flag. Native terrain-aware water lookup and bounded depth recovery replace zero-sea-level assumptions. Movement and predator damage still require in-game verification after installing this build.
+
+
+## Optional OverworldEvents integration
+
+The `test/overworld-events` branch was edited with the aid of AI. It adds an optional bridge for the separate OverworldEvents DLL, using CubeMega's existing NPC talk and chest dispatch hooks. Handled event interactions bypass ordinary CubeMega rewards, including denial of a locked chest. When OverworldEvents is absent, existing dispatch remains unchanged.
+
+The bridge exports native entity spawning/appearance with unique positive IDs, native loot delivery through the existing PyroProgression drop hook, gear generation, event-bound key grant/consumption, and chat dialogue. Keys are matched by category, ID, modifier and region; inventory mutation uses CubeMega's game allocator. The supported Steam executable is checked before native calls. No general renderer, ReShade, water movement, or world-generation behavior is changed by this bridge.
+
+This is development integration. Native AI and cage/sack/key interactions still need gameplay verification. Build with the existing instructions above and retain the installed basename `CubeMegaMod-XPC-RU1.dll` for bridge discovery.
