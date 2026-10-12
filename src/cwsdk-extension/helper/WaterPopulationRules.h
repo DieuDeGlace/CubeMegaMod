@@ -1,14 +1,18 @@
 #pragma once
+// Pure population rules for the aquatic spawner in DivingEvent.cpp: caps,
+// deterministic per-chunk spawn sites, and entity lifecycle decisions.
+// Distances are in blocks. Tested by tests/aquatic_rules.cpp.
 #include <cstdint>
-constexpr int WaterPopulationCap = 18;
-constexpr int WaterSchoolMax = 3;
-constexpr int WaterSpawnRadius = 192;
-constexpr int WaterRetireRadius = 256;
+constexpr int WaterPopulationCap = 18; // Tracked fish in total.
+constexpr int WaterSchoolMax = 3;      // Fish per school.
+constexpr int WaterSpawnRadius = 192;  // Chunks within this of the player are populated.
+constexpr int WaterRetireRadius = 256; // Bosses beyond this are retired.
 inline bool WaterWithinRadius(long long x, long long y, long long px, long long py, int radius) {
     long double dx = (long double)x - px, dy = (long double)y - py;
     return dx * dx + dy * dy <= (long double)radius * radius;
 }
 
+// Deterministic hash of a chunk/site, world seed and attempt number.
 inline unsigned int WaterPopulationHash(int x, int y, int seed, unsigned int attempt) {
     uint32_t h = (uint32_t)x * 0x9e3779b9u ^ (uint32_t)y * 0x85ebca6bu ^ (uint32_t)seed ^
                  attempt * 0xc2b2ae35u;
@@ -22,6 +26,7 @@ inline bool WaterPopulationCanSpawn(int total, int local, long long now, long lo
     return total <= WaterPopulationCap - 2 && local == 0 && now >= next;
 }
 
+// 2 or 3 fish, limited by the remaining population budget (0 if under 2).
 inline int WaterSchoolSize(int total, unsigned int random) {
     int remaining = WaterPopulationCap - total;
     if (remaining < 2)
@@ -40,10 +45,12 @@ inline WaterEntityAction WaterEntityLifecycle(bool resident, bool alive, bool or
                                                                : WaterEntityAction::Retire;
 }
 
+// One in four boss rolls succeeds.
 inline bool WaterBossRoll(unsigned int random) {
     return random % 4 == 0;
 }
 
+// Returns `tracked` if it is still in `residents` with the same ID, else null.
 template <class List, class Pointer>
 Pointer FindResidentWaterEntity(const List &residents, Pointer tracked, decltype(tracked->id) id) {
     // Never dereference an old pointer or trust an ID that another entity reused.
@@ -64,17 +71,19 @@ inline int WaterSiteSpecies(unsigned int hash) {
     return (hash >> 8) % 13;
 }
 
-constexpr long long WaterSiteRespawnDelay = 600;
+constexpr long long WaterSiteRespawnDelay = 600; // Seconds a cleared site stays empty.
 inline bool WaterSiteCanRepopulate(long long now, long long emptySince) {
     return emptySince > 0 && now >= emptySince && now - emptySince >= WaterSiteRespawnDelay;
 }
 
+// Factory fish species for a site; some species are ocean-only.
 inline int WaterSiteSpecies(unsigned int hash, bool ocean) {
     constexpr int sea[] = {0, 1, 2, 3, 4, 6, 7, 8, 9, 10, 11, 12};
     constexpr int inland[] = {2, 3, 4, 7, 8, 9, 10, 11, 12};
     return ocean ? sea[(hash >> 8) % 12] : inland[(hash >> 8) % 9];
 }
 
+// Only every second (ocean) or third (inland) chunk hosts a school.
 inline bool WaterSiteEligible(int x, int y, int seed, bool ocean) {
     long long n = (long long)x + y + seed;
     int period = ocean ? 2 : 3;

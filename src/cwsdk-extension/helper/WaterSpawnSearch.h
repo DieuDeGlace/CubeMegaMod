@@ -1,5 +1,7 @@
 #pragma once
 
+// Finds the water height nearest `start` (alternating below, then above, up to
+// 128 blocks away) and stores it in *result.
 // Search a bounded vertical column. Both the body and the block above it must
 // contain water. A predicate keeps this algorithm testable without the game.
 template <typename IsWater>
