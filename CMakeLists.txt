@@ -7,6 +7,8 @@ add_library (CubeMegaMod-XPC-RU1-AmbientWater SHARED "main.cpp"
 "src/hooks.cpp"
 "src/OverworldEventBridge.h"
 "src/OverworldEventBridge.cpp"
+"src/NativeEventDialogue.cpp"
+"src/NativeEventLoot.cpp"
 "src/hooks/drop_gold_on_hit.h"
 "src/cwsdk-extension/events/Event.cpp"
 "src/cwsdk-extension/events/AddGoldEvent.h"
@@ -66,4 +68,8 @@ if(BUILD_TESTING)
     target_compile_options(OverworldKeyInventoryTest PRIVATE /UNDEBUG)
     target_link_libraries(OverworldKeyInventoryTest PRIVATE CWSDK)
     add_test(NAME OverworldKeyInventory COMMAND OverworldKeyInventoryTest)
+    add_executable(EventLootRulesTest tests/event_loot_rules.cpp)
+    target_compile_features(EventLootRulesTest PRIVATE cxx_std_17)
+    target_compile_options(EventLootRulesTest PRIVATE /UNDEBUG)
+    add_test(NAME EventLootRules COMMAND EventLootRulesTest)
 endif()

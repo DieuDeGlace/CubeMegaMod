@@ -1,4 +1,7 @@
 #include "OverworldEventBridge.h"
+#include "NativeEventDialogue.h"
+#include "NativeEventLoot.h"
+#include "EventLootRules.h"
 
 #include "cwsdk-extension/creature/CreatureFactory.h"
 #include "cwsdk-extension/creature/Creature.h"
@@ -87,13 +90,11 @@ bool overworldBridge::SupportsExaminationHook() {
         return false;
     // Inspected Steam E-key block: mov rcx,rdi; call 0x5ee10; test al,al;
     // jz 0x99298. Do not extend it if another mod already replaced it.
-    static const unsigned char predicate[] = {
-        0x48, 0x8b, 0xcf, 0xe8, 0x75, 0x5c, 0xfc, 0xff,
-        0x84, 0xc0, 0x0f, 0x84, 0xf5, 0x00, 0x00, 0x00};
+    static const unsigned char predicate[] = {0x48, 0x8b, 0xcf, 0xe8, 0x75, 0x5c, 0xfc, 0xff,
+                                              0x84, 0xc0, 0x0f, 0x84, 0xf5, 0x00, 0x00, 0x00};
     // The native predicate accepts races 181 through 184 and remains callable.
-    static const unsigned char native[] = {
-        0x8b, 0x51, 0x64, 0x81, 0xea, 0xb5, 0x00, 0x00,
-        0x00, 0x83, 0xfa, 0x03, 0x0f, 0x96, 0xc0, 0xc3};
+    static const unsigned char native[] = {0x8b, 0x51, 0x64, 0x81, 0xea, 0xb5, 0x00, 0x00,
+                                           0x00, 0x83, 0xfa, 0x03, 0x0f, 0x96, 0xc0, 0xc3};
     return std::memcmp(CWOffset(0x99193), predicate, sizeof(predicate)) == 0 &&
            std::memcmp(CWOffset(0x5ee10), native, sizeof(native)) == 0;
 }
@@ -147,8 +148,16 @@ EXPORT cube::Creature *SpawnOverworldEntity(const LongVector3 *position, const I
     if (behaviour == static_cast<int>(cube::Enums::EntityBehaviour::Hostile))
         creature->entity_data.appearance.flags2 &=
             ~(1u << static_cast<unsigned>(cube::Enums::AppearanceModifiers::IsFriendly));
+    if (behaviour == static_cast<int>(cube::Enums::EntityBehaviour::ExamineObject)) {
+        // Native examination actors have no combat equipment/inventory. Their
+        // positive HP is only the engine's liveness marker, with no health HUD.
+        std::memset(&creature->entity_data.equipment, 0, sizeof(creature->entity_data.equipment));
+        creature->inventory_tabs.clear();
+        creature->entity_data.appearance.flags2 &=
+            ~((1u << 9) | (1u << 14) | (1u << 15) | (1u << 17) | (1u << 18) | (1u << 22));
+    }
     auto hp = creature->GetMaxHP();
-    creature->entity_data.HP = std::isfinite(hp) && hp > 0.f ? hp : 1.f;
+    creature->entity_data.HP = behaviour == 8 ? 1.f : (std::isfinite(hp) && hp > 0.f ? hp : 1.f);
     for (auto &tab : creature->inventory_tabs)
         for (auto &stack : tab)
             stack.item.region = *region;
@@ -159,6 +168,8 @@ EXPORT cube::Creature *SpawnOverworldEntity(const LongVector3 *position, const I
 EXPORT void DropOverworldReward(cube::Game *game, cube::Creature *recipient, const cube::Item *item,
                                 cube::Creature *source) {
     if (!SupportedSteam() || !game || !game->world || !game->host.running || !recipient || !item)
+        return;
+    if (!overworldBridge::loot::recipientGear(*item, recipient->entity_data.classType))
         return;
     auto reward = *item;
     auto position = recipient->entity_data.position;
@@ -171,19 +182,7 @@ EXPORT void DropOverworldReward(cube::Game *game, cube::Creature *recipient, con
 EXPORT int GenerateOverworldGear(const IntVector2 *region, std::uint64_t roll, cube::Item *out) {
     if (!SupportedSteam() || !region || !out)
         return 0;
-    auto item = cube::Helper::GenerateItem(cube::Helper::ItemGenerationType::Gear, *region);
-    // Preserve the existing gear helper's random generation. Derive the reward
-    // identity from the event roll without adding another shared RNG reseed.
-    roll += 0x9e3779b97f4a7c15ull;
-    roll = (roll ^ (roll >> 30)) * 0xbf58476d1ce4e5b9ull;
-    roll = (roll ^ (roll >> 27)) * 0x94d049bb133111ebull;
-    roll ^= roll >> 31;
-    item.modifier = static_cast<unsigned>(roll);
-    if (!item.modifier)
-        item.modifier = 1;
-    item.rarity = static_cast<char>((roll >> 32) % 5);
-    *out = item;
-    return 1;
+    return overworldBridge::GenerateNativeEventLoot(*region, roll, *out) ? 1 : 0;
 }
 
 EXPORT int GrantOverworldKey(cube::Game *game, cube::Creature *recipient, const cube::Item *key) {
@@ -203,10 +202,17 @@ EXPORT int ConsumeOverworldKey(cube::Game *game, cube::Creature *recipient, cons
 }
 
 EXPORT void OverworldDialogue(cube::Game *game, cube::Creature *speaker, const wchar_t *text) {
-    if (!SupportedSteam() || !game || !speaker || !text || !game->gui.chat_widget)
+    if (!SupportedSteam() || !game || !speaker || !text)
         return;
-    // The SDK does not expose a verified custom NPC speech-widget API. Keep this
-    // fallback on the existing chat path rather than manipulating widget state.
+    // Command/status feedback belongs to chat; event speakers use the normal
+    // world-space speech widget that is anchored to their native entity ID.
+    if (speaker != game->GetPlayer()) {
+        if (!overworldBridge::ShowNativeEventDialogue(game, speaker, text))
+            OutputDebugStringA("OverworldEvents: native speaker dialogue was unavailable.\n");
+        return;
+    }
+    if (!game->gui.chat_widget)
+        return;
     FloatRGBA color(235.f / 255.f, 235.f / 255.f, 210.f / 255.f, 1.f);
     game->PrintMessage(text, &color);
     game->PrintMessage(L"\n", &color);
