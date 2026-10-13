@@ -3,7 +3,6 @@
 #include "cwsdk-extension/creature/CreatureFactory.h"
 #include "cwsdk-extension/creature/Creature.h"
 #include "cwsdk-extension/helper/Helper.h"
-#include "cwsdk-extension/Inventory.h"
 
 #include <algorithm>
 #include <cmath>
@@ -62,14 +61,9 @@ std::uint64_t NewEntityId(cube::Game *game) {
 using Drop = void (*)(cube::World *, cube::Item *, LongVector3 *, float, float, int,
                       cube::Creature *, std::uint64_t);
 
-bool KeyMatches(const cube::Item &item, const cube::Item &key) {
-    return item.category == key.category && item.id == key.id && item.modifier == key.modifier &&
-           item.region == key.region;
-}
-
 bool ValidInventory(cube::Game *game, cube::Creature *recipient, const cube::Item *key) {
     return SupportedSteam() && game && game->world && game->host.running && recipient && key &&
-           key->category == 24;
+           overworldBridge::inventory::NativeKey(*key);
 }
 } // namespace
 
@@ -159,32 +153,19 @@ EXPORT int GenerateOverworldGear(const IntVector2 *region, std::uint64_t roll, c
 }
 
 EXPORT int GrantOverworldKey(cube::Game *game, cube::Creature *recipient, const cube::Item *key) {
-    if (!ValidInventory(game, recipient, key) ||
-        recipient->inventory_tabs.size() <= cube::Inventory::SpecialsTab)
+    if (!ValidInventory(game, recipient, key))
         return 0;
-    for (const auto &tab : recipient->inventory_tabs)
-        for (const auto &stack : tab)
-            if (stack.quantity > 0 && KeyMatches(stack.item, *key))
-                return 1;
     auto granted = *key;
-    recipient->inventory_tabs[cube::Inventory::SpecialsTab].push_back(cube::ItemStack(1, granted));
-    cube::Helper::AnnounceItem(game, &granted, 1, recipient);
-    return 1;
+    auto result = overworldBridge::inventory::Grant(recipient->inventory_tabs, granted);
+    if (result == 2)
+        cube::Helper::AnnounceItem(game, &granted, 1, recipient);
+    return result != 0;
 }
 
 EXPORT int ConsumeOverworldKey(cube::Game *game, cube::Creature *recipient, const cube::Item *key) {
     if (!ValidInventory(game, recipient, key))
         return 0;
-    for (auto &tab : recipient->inventory_tabs) {
-        for (auto stack = tab.begin(); stack != tab.end(); ++stack) {
-            if (stack->quantity <= 0 || !KeyMatches(stack->item, *key))
-                continue;
-            if (--stack->quantity == 0)
-                tab.erase(stack);
-            return 1;
-        }
-    }
-    return 0;
+    return overworldBridge::inventory::Consume(recipient->inventory_tabs, *key);
 }
 
 EXPORT void OverworldDialogue(cube::Game *game, cube::Creature *speaker, const wchar_t *text) {

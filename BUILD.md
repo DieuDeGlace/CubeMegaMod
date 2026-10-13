@@ -34,4 +34,8 @@ The `test/overworld-events` branch was edited with the aid of AI. It adds an opt
 
 The bridge exports native entity spawning/appearance with unique positive IDs, native loot delivery through the existing PyroProgression drop hook, gear generation, event-bound key grant/consumption, and chat dialogue. Keys are matched by category, ID, modifier and region; inventory mutation uses CubeMega's game allocator. The supported Steam executable is checked before native calls. No general renderer, ReShade, water movement, or world-generation behavior is changed by this bridge.
 
+Event keys use the inspected native key category 22, IDs 0–19, including Rusty Key `22:6`. Steam's inventory classifier at `0x5f100` routes that category to tab 1 (special items). Category 24's Gate Key is a separate item and is excluded from this bridge. Duplicate grants retain the existing key, and unlocking consumes exactly one matching key across inventory tabs. Local regression checks cover all 20 native key IDs, tab routing, missing tabs, duplicate grants, keys bound to other encounters or regions, and depletion of a two-key stack without consuming unrelated items.
+
 This is development integration. Native AI and cage/sack/key interactions still need gameplay verification. Build with the existing instructions above and retain the installed basename `CubeMegaMod-XPC-RU1.dll` for bridge discovery.
+
+Run the bridge's key-inventory regression test with `ctest --test-dir build --output-on-failure`. The test uses its own heap and aborts on any attempted native game call; it exercises the production grant/consume helpers without injecting code or opening the game.
