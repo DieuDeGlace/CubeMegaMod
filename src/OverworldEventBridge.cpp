@@ -7,9 +7,12 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <cstring>
 
 namespace {
 using Interaction = int (*)(cube::Game *, cube::Creature *);
+using EntityOwnership = int (*)(std::uint64_t);
+using NativeCanExamine = bool (*)(cube::Creature *);
 using DeathCallback = void (*)(cube::Game *, cube::Creature *, cube::Creature *);
 
 template <typename Callback> Callback Resolve(Callback &cached, const char *name) {
@@ -77,6 +80,37 @@ bool overworldBridge::ObjectInteraction(cube::Game *game, cube::Creature *creatu
     static Interaction callback = nullptr;
     auto function = Resolve(callback, "OverworldEventObjectInteraction");
     return function && game && creature && function(game, creature) != 0;
+}
+
+bool overworldBridge::SupportsExaminationHook() {
+    if (!SupportedSteam())
+        return false;
+    // Inspected Steam E-key block: mov rcx,rdi; call 0x5ee10; test al,al;
+    // jz 0x99298. Do not extend it if another mod already replaced it.
+    static const unsigned char predicate[] = {
+        0x48, 0x8b, 0xcf, 0xe8, 0x75, 0x5c, 0xfc, 0xff,
+        0x84, 0xc0, 0x0f, 0x84, 0xf5, 0x00, 0x00, 0x00};
+    // The native predicate accepts races 181 through 184 and remains callable.
+    static const unsigned char native[] = {
+        0x8b, 0x51, 0x64, 0x81, 0xea, 0xb5, 0x00, 0x00,
+        0x00, 0x83, 0xfa, 0x03, 0x0f, 0x96, 0xc0, 0xc3};
+    return std::memcmp(CWOffset(0x99193), predicate, sizeof(predicate)) == 0 &&
+           std::memcmp(CWOffset(0x5ee10), native, sizeof(native)) == 0;
+}
+
+bool overworldBridge::CanExamine(cube::Creature *creature) {
+    if (!creature)
+        return false;
+    if (reinterpret_cast<NativeCanExamine>(CWOffset(0x5ee10))(creature))
+        return true;
+    // Only event-owned noncombat examination objects may enter the chest path.
+    // Its existing interaction bridge handles their reward/open state first.
+    if (creature->entity_data.hostility_type !=
+        static_cast<int>(cube::Enums::EntityBehaviour::ExamineObject))
+        return false;
+    static EntityOwnership callback = nullptr;
+    auto function = Resolve(callback, "IsOverworldEventEntity");
+    return function && function(static_cast<std::uint64_t>(creature->id)) != 0;
 }
 
 void overworldBridge::CreatureDeath(cube::Game *game, cube::Creature *victim,

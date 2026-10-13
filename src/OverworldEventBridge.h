@@ -45,6 +45,9 @@ inline bool Consume(Tabs &tabs, const cube::Item &key) {
 // the object opens. CubeMega must not grant its ordinary chest reward afterward.
 bool Talk(cube::Game *game, cube::Creature *creature);
 bool ObjectInteraction(cube::Game *game, cube::Creature *creature);
+// Preflight the additional E-key predicate hook before replacing its block.
+bool SupportsExaminationHook();
+bool CanExamine(cube::Creature *creature);
 void CreatureDeath(cube::Game *game, cube::Creature *victim, cube::Creature *attacker);
 } // namespace overworldBridge
 
