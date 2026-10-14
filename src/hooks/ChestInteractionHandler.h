@@ -21,9 +21,29 @@ int ChestInteractionHandler(cube::Game *game, cube::Creature *creature, int type
 	return 0;
 }
 
+// Mark an event object opened on every world copy so replication cannot
+// close it again and expose it to ordinary chest rewards.
+static void CloseEventObject(cube::Game* game, cube::Creature* creature) {
+	for (auto world : { &game->host.world, game->world }) {
+		if (!world)
+			continue;
+		auto entry = world->id_to_creature_map.find(creature->id);
+		if (entry != world->id_to_creature_map.end() && entry->second)
+			entry->second->entity_data.interaction_state = 2;
+	}
+	creature->entity_data.interaction_state = 2;
+}
+
 extern "C" void OnChestInteraction(cube::Game* game, cube::Creature* creature) {
 	if (overworldBridge::ObjectInteraction(game, creature))
 	{
+		return;
+	}
+	// Event chests only ever pay out through OverworldEvents. An untracked one
+	// (retired, orphaned or from an older session) is closed without loot.
+	if (overworldBridge::EventEntityId(static_cast<std::uint64_t>(creature->id)))
+	{
+		CloseEventObject(game, creature);
 		return;
 	}
 	int type = creature->entity_data.race - 181;

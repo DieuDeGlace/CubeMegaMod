@@ -2,60 +2,78 @@
 
 namespace overworldBridge {
 namespace loot {
-// Equipment families emitted by Steam's native armor/weapon generators.
-// Armor materials correspond to its class-bound plate, silk, linen and cotton;
-// gems/crafting materials are never valid substitutes for these gear materials.
+// Native classes (entity classType) and the IDs below were checked against the
+// inspected Steam executable: item names from its item dictionary, material
+// names from its material-name switch at RVA 0x16b8a0.
+enum Class { Warrior = 1, Ranger = 2, Mage = 3, Rogue = 4, Monk = 5 };
+enum Material {
+    Iron = 1, Wood = 2, Steel = 4, Gold = 11, Silver = 12,
+    Silk = 26, Linen = 27, Cotton = 28, Bronze = 29
+};
+enum Category { Weapon = 3, Chest = 4, Gloves = 5, Boots = 6, Shoulder = 7, Amulet = 8, Ring = 9 };
+enum WeaponId {
+    Sword = 0, Axe = 1, Mace = 2, Dagger = 3, Fist = 4, Longsword = 5, Bow = 6, Crossbow = 7,
+    Boomerang = 8, Staff = 10, Wand = 11, Bracelet = 12, Shield = 13, Greatsword = 15,
+    Greataxe = 16, Greatmace = 17
+};
+
+// Armor: warriors wear plate (iron, steel, bronze), rangers linen, mages silk and
+// rogues cotton. Gems and crafting materials are never valid gear materials.
 inline bool armorMaterial(int material, int classType) {
     switch (classType) {
-    case 1:
-        return material == 1 || material == 4 || material == 29;
-    case 2:
-        return material == 27;
-    case 3:
-        return material == 26;
-    case 4:
-        return material == 28;
+    case Warrior:
+        return material == Iron || material == Steel || material == Bronze;
+    case Ranger:
+        return material == Linen;
+    case Mage:
+        return material == Silk;
+    case Rogue:
+        return material == Cotton;
     default:
         return false;
     }
 }
 inline bool weapon(int id, int material, int classType) {
     switch (classType) {
-    case 1:
-        return material == 1 && ((id >= 0 && id <= 2) || id == 13 || (id >= 15 && id <= 17));
-    case 2:
-        return material == 2 && id >= 6 && id <= 8;
-    case 3:
-        return (material == 2 && (id == 10 || id == 11)) ||
-               ((material == 11 || material == 12) && id == 12);
-    case 4:
-        return material == 1 && (id == 3 || id == 4 || id == 5);
+    case Warrior:
+        return material == Iron && ((id >= Sword && id <= Mace) || id == Shield ||
+                                    (id >= Greatsword && id <= Greatmace));
+    case Ranger:
+        return material == Wood && id >= Bow && id <= Boomerang;
+    case Mage:
+        return (material == Wood && (id == Staff || id == Wand)) ||
+               ((material == Gold || material == Silver) && id == Bracelet);
+    case Rogue:
+        return material == Iron && (id == Dagger || id == Fist || id == Longsword);
     default:
         return false;
     }
 }
+inline bool jewelryMaterial(int material) {
+    return material == Gold || material == Silver;
+}
 template <class Item> inline bool nativeGear(const Item &item, int classType) {
-    if (classType < 1 || classType > 4 || item.rarity < 0 || item.rarity > 4 ||
+    if (classType < Warrior || classType > Rogue || item.rarity < 0 || item.rarity > 4 ||
         item.formula_category != 0 || item.num_spirits != 0)
         return false;
-    if (item.category == 3)
+    if (item.category == Weapon)
         return weapon(item.id, int(item.material), classType);
-    if (item.category >= 4 && item.category <= 7)
+    if (item.category >= Chest && item.category <= Shoulder)
         return item.id == 0 && armorMaterial(int(item.material), classType);
-    return (item.category == 8 || item.category == 9) && item.id == 0 &&
-           (item.material == 11 || item.material == 12);
+    return (item.category == Amulet || item.category == Ring) && item.id == 0 &&
+           jewelryMaterial(int(item.material));
 }
 template <class Item> inline bool naturalGear(const Item &item) {
-    for (int classType = 1; classType <= 4; ++classType)
+    for (int classType = Warrior; classType <= Rogue; ++classType)
         if (nativeGear(item, classType))
             return true;
     return false;
 }
 template <class Item> inline bool recipientGear(const Item &item, int classType) {
-    if (classType == 5) {
+    if (classType == Monk) {
         // CubeMega's Monk uses native fist weapons. Its cloth rewards remain
         // native cotton armor rather than a new material/category combination.
-        return nativeGear(item, 4) && (item.category != 3 || item.id == 4);
+        return nativeGear(item, Rogue) && (item.category != Weapon || item.id == Fist);
     }
     return nativeGear(item, classType);
 }
