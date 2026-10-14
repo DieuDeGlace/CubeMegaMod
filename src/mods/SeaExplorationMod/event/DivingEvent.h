@@ -45,6 +45,8 @@ struct IdCreaturePair {
     SwimPoint lastMotionPosition; // Position (blocks) at the previous update.
     unsigned int swimAttempt = 0;
     double nextSwimPlan = 0;
+    int lastAbility = 0;
+    int lastCombo = 0;
 };
 
 // A school of fish (or a lake encounter group) and the site it was spawned at.

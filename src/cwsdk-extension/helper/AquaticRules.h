@@ -95,3 +95,23 @@ inline double SwimForwardAmount(double headingError) {
     double c = std::cos(a * SWIM_PI / 180);
     return c * c;
 }
+
+// Native relation sides (0x4ef80): hostile actors without the ally flag oppose
+// every other behaviour. Passive fish and aquatic predators are opponents.
+inline bool AquaticOpposed(int hostilityA, bool friendlyA, int hostilityB, bool friendlyB) {
+    return (hostilityA != 1 || friendlyA) != (hostilityB != 1 || friendlyB);
+}
+// Native aquatic attacks target each other but never apply creature-to-creature
+// damage. One hit lands per new ability or combo step.
+inline bool AquaticAttackStarted(int previousAbility, int ability, int previousCombo, int combo) {
+    return ability != 0 && (previousAbility == 0 || combo != previousCombo);
+}
+inline double AquaticReach(float attackerScale, float targetScale) {
+    return 2. * (std::max)(1.f, attackerScale) + .5 * (std::max)(1.f, targetScale);
+}
+inline float AquaticHitDamage(float attack, float targetMaxHP) {
+    if (!(attack > 0) || !(targetMaxHP > 0))
+        return 0;
+    // A single hit never removes more than 40% of the target's health.
+    return (std::min)((std::max)(1.f, attack * .5f), targetMaxHP * .4f);
+}
