@@ -43,6 +43,8 @@ struct IdCreaturePair {
     SwimPoint lastMotionPosition;
     unsigned int swimAttempt = 0;
     double nextSwimPlan = 0;
+    int lastAbility = 0;
+    int lastCombo = 0;
 };
 
 struct SpawnMoment {
@@ -108,6 +110,8 @@ class DivingEvent : public Event {
     // Fish logic
     void HandleFishTimer();
     void UpdateSwimming();
+    void ApplyAquaticHits(const std::vector<SpawnMoment *> &groups,
+                          const std::vector<cube::Creature *> &residents);
     void SpawnFishes(const LongVector3 &position);
     void GetLocalEnemyProfile(const LongVector3 &position, IntVector2 *region, int *stars);
 
