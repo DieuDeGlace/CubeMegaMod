@@ -58,6 +58,18 @@ int main() {
     assert(!SwimRecoverDepth(
         {0, 0, 50}, &recovered, [](SwimPoint) { return true; },
         [](SwimPoint p) { return p.z <= 1; }));
+
+    // Passive fish (2) and hostile predators (1) oppose each other; allies do not.
+    assert(AquaticOpposed(1, false, 2, false) && AquaticOpposed(2, false, 1, false));
+    assert(!AquaticOpposed(1, false, 1, false) && !AquaticOpposed(2, false, 2, false));
+    assert(!AquaticOpposed(1, true, 2, false));
+    // One hit per new ability or combo step, none while idle or mid-swing.
+    assert(AquaticAttackStarted(0, 5, 0, 0) && AquaticAttackStarted(5, 5, 1, 2));
+    assert(!AquaticAttackStarted(5, 5, 2, 2) && !AquaticAttackStarted(5, 0, 2, 3));
+    assert(AquaticReach(2.5f, 1) > AquaticReach(1, 1) && AquaticReach(.5f, .5f) == 2.5);
+    assert(AquaticHitDamage(10, 1000) == 5 && AquaticHitDamage(1000, 100) == 40);
+    assert(AquaticHitDamage(.1f, 100) == 1 && AquaticHitDamage(0, 100) == 0 &&
+           AquaticHitDamage(10, 0) == 0);
     puts(
         "Species temperament, aquatic-only hostile bosses, smooth bounded movement, wall/surface/unloaded-path rejection and population lifecycle: PASS");
 }

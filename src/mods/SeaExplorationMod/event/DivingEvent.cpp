@@ -241,6 +241,7 @@ void cube::DivingEvent::UpdateSwimming() {
         if (std::binary_search(tracked.begin(), tracked.end(), creature,
                                std::less<cube::Creature *>()))
             residents.push_back(creature);
+    ApplyAquaticHits(movementGroups, residents);
     bool check = m_SwimTime >= m_NextSwimCheck;
     if (check)
         m_NextSwimCheck = m_SwimTime + .1;
@@ -398,6 +399,54 @@ void cube::DivingEvent::UpdateSwimming() {
     }
     for (size_t i = 0; i < bossGroups.size(); i++)
         m_SpawnedBosses[bossIndices[i]] = bossGroups[i].creature_ids.front();
+}
+
+void cube::DivingEvent::ApplyAquaticHits(const std::vector<SpawnMoment *> &groups,
+                                         const std::vector<cube::Creature *> &residents) {
+    const unsigned friendlyBit = 1u << (int)cube::Enums::AppearanceModifiers::IsFriendly;
+    auto resident = [&](const IdCreaturePair &pair) -> cube::Creature * {
+        auto creature = FindResidentWaterEntity(residents, pair.creature, pair.id);
+        return creature && !pair.retiring && creature->entity_data.HP > 0 ? creature : nullptr;
+    };
+    for (auto group : groups)
+        for (auto &pair : group->creature_ids) {
+            auto attacker = resident(pair);
+            if (!attacker)
+                continue;
+            auto &a = attacker->entity_data;
+            bool started =
+                AquaticAttackStarted(pair.lastAbility, a.current_ability, pair.lastCombo, a.hit_combo);
+            pair.lastAbility = a.current_ability;
+            pair.lastCombo = a.hit_combo;
+            if (!started)
+                continue;
+            // Only tracked aquatic actors are affected; native combat elsewhere is unchanged.
+            cube::Creature *target = nullptr;
+            double best = 0;
+            for (auto other : groups)
+                for (auto &candidate : other->creature_ids) {
+                    auto victim = resident(candidate);
+                    if (!victim || victim == attacker)
+                        continue;
+                    auto &v = victim->entity_data;
+                    if (!AquaticOpposed(a.hostility_type, (a.appearance.flags2 & friendlyBit) != 0,
+                                        v.hostility_type, (v.appearance.flags2 & friendlyBit) != 0))
+                        continue;
+                    double dx = double(v.position.x - a.position.x) / cube::DOTS_PER_BLOCK,
+                           dy = double(v.position.y - a.position.y) / cube::DOTS_PER_BLOCK,
+                           dz = double(v.position.z - a.position.z) / cube::DOTS_PER_BLOCK;
+                    double distance = std::sqrt(dx * dx + dy * dy + dz * dz);
+                    if (distance <= AquaticReach(a.appearance.hitbox_scale, v.appearance.hitbox_scale) &&
+                        (!target || distance < best)) {
+                        target = victim;
+                        best = distance;
+                    }
+                }
+            if (!target)
+                continue;
+            float damage = AquaticHitDamage(attacker->GetAttackPower(), target->GetMaxHP());
+            target->entity_data.HP = (std::max)(0.f, target->entity_data.HP - damage);
+        }
 }
 
 void cube::DivingEvent::UpdateIds() {
