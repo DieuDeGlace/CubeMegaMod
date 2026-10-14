@@ -44,12 +44,12 @@ inline bool Consume(Tabs &tabs, const cube::Item &key) {
 // Bridge version 2: gear generation takes the recipient, and reward delivery
 // reports whether the item passed validation and reached the native drop.
 constexpr unsigned Version = 2;
-// SpawnOverworldEntity assigns IDs only from this reserved positive range.
+// SpawnOverworldEntity allocates IDs from this positive range. Native IDs are
+// not known to avoid it, so the range alone never identifies an event actor.
 constexpr std::uint64_t FirstEntityId = 0x6000000000000000ull;
 constexpr std::uint64_t EntityIdLimit = 0x7fffffffffffffffull;
-inline bool EventEntityId(std::uint64_t id) {
-    return id >= FirstEntityId && id < EntityIdLimit;
-}
+// True only for an ID this bridge spawned during the current game process.
+bool SpawnedEventEntity(std::uint64_t id);
 // A handled interaction belongs entirely to OverworldEvents, including whether
 // the object opens. CubeMega must not grant its ordinary chest reward afterward.
 bool Talk(cube::Game *game, cube::Creature *creature);

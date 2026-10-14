@@ -11,6 +11,8 @@
 #include <cmath>
 #include <cstdint>
 #include <cstring>
+#include <mutex>
+#include <unordered_set>
 
 namespace {
 using Interaction = int (*)(cube::Game *, cube::Creature *);
@@ -64,6 +66,17 @@ std::uint64_t NewEntityId(cube::Game *game) {
     return 0;
 }
 
+// Exact IDs of every actor this bridge created. Event objects are identified
+// by membership, never by ID range: native creatures and chests may use any ID.
+struct SpawnedIds {
+    std::mutex gate;
+    std::unordered_set<std::uint64_t> ids;
+};
+SpawnedIds &Spawned() {
+    static SpawnedIds value;
+    return value;
+}
+
 using Drop = void (*)(cube::World *, cube::Item *, LongVector3 *, float, float, int,
                       cube::Creature *, std::uint64_t);
 
@@ -103,9 +116,9 @@ bool overworldBridge::CanExamine(cube::Creature *creature) {
     if (!creature)
         return false;
     auto id = static_cast<std::uint64_t>(creature->id);
-    // Event-range IDs never use the native chest predicate: an event chest that
-    // is no longer tracked (retired, orphaned) must not become an ordinary chest.
-    if (!EventEntityId(id))
+    // Actors this bridge spawned never use the native chest predicate: an event
+    // chest that is no longer tracked must not become an ordinary chest.
+    if (!SpawnedEventEntity(id))
         return reinterpret_cast<NativeCanExamine>(CWOffset(0x5ee10))(creature);
     // Only event-owned noncombat examination objects may enter the chest path.
     // Its existing interaction bridge handles their reward/open state first.
@@ -123,6 +136,12 @@ void overworldBridge::CreatureDeath(cube::Game *game, cube::Creature *victim,
     auto function = Resolve(callback, "OverworldEventCreatureDeath");
     if (function && game && victim)
         function(game, victim, attacker);
+}
+
+bool overworldBridge::SpawnedEventEntity(std::uint64_t id) {
+    auto &spawned = Spawned();
+    std::lock_guard<std::mutex> guard(spawned.gate);
+    return spawned.ids.count(id) != 0;
 }
 
 EXPORT unsigned OverworldBridgeVersion() {
@@ -144,6 +163,11 @@ EXPORT cube::Creature *SpawnOverworldEntity(const LongVector3 *position, const I
     auto creature = cube::Creature::Create(static_cast<__int64>(id));
     if (!creature)
         return nullptr;
+    {
+        auto &spawned = Spawned();
+        std::lock_guard<std::mutex> guard(spawned.gate);
+        spawned.ids.insert(id);
+    }
     creature->entity_data.position = *position;
     creature->entity_data.current_region = *region;
     creature->entity_data.yaw = cube::Helper::RandomZeroToOne() * 360.f;
