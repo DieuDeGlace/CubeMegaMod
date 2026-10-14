@@ -27,44 +27,49 @@ const static auto BOUNDS_CHECK_DIST_MULTIPLIER = 2;
 const static long long CREATURE_SPAWN_RANGE = 5000000;
 const static double BOUNDS_CHECK_INTERVAL = 5;
 
+// A spawned entity, identified by both pointer and ID (see FindResidentWaterEntity),
+// plus the swimming controller's per-creature state. Times are in swim seconds.
 struct IdCreaturePair {
     __int64 id;
     cube::Creature *creature;
-    bool retiring = false;
-    bool hasRoamHome = false;
+    bool retiring = false;    // Killed by us; slot kept until the engine releases it.
+    bool hasRoamHome = false; // Bosses: roamHome is where they were first seen.
     LongVector3 roamHome;
     SwimPoint swimTarget;
-    bool swimming = false;
+    bool swimming = false; // Moving toward swimTarget.
     double nextWaterRepair = 0;
-    bool waterRecoveryUsed = false;
-    bool recoveringWater = false;
+    bool waterRecoveryUsed = false; // Depth recovery is allowed once per creature.
+    bool recoveringWater = false;   // Sinking back toward waterRecoveryTarget.
     SwimPoint waterRecoveryTarget;
     bool hasMotionSample = false;
-    SwimPoint lastMotionPosition;
+    SwimPoint lastMotionPosition; // Position (blocks) at the previous update.
     unsigned int swimAttempt = 0;
     double nextSwimPlan = 0;
     int lastAbility = 0;
     int lastCombo = 0;
 };
 
+// A school of fish (or a lake encounter group) and the site it was spawned at.
 struct SpawnMoment {
     LongVector3 position;
-    int lakeRace = 0;
+    int lakeRace = 0; // Non-zero: a lake encounter that uses native ground AI.
     std::vector<IdCreaturePair> creature_ids;
 };
 
+// Spawn state of one loaded water chunk (zone).
 struct WaterZonePopulation {
     IntVector2 zone;
-    unsigned int siteProbe = 0;
+    unsigned int siteProbe = 0; // Next of the 16 lattice sites to try.
     bool populated = false;
-    time_t emptySince = 0;
-    bool hasAnchor = false;
+    time_t emptySince = 0;  // When its population was last seen gone (0 = not empty).
+    bool hasAnchor = false; // anchor: the validated school site, reused on respawn.
     LongVector3 anchor;
     time_t next_spawn = 0;
     bool boss_attempted = false;
 };
 
 static long long DistanceSquared(const LongVector3 &p1, const LongVector3 &p2);
+struct NativeLakeLocation;
 
 namespace cube {
 class DivingEvent : public Event {
@@ -82,7 +87,7 @@ class DivingEvent : public Event {
     IntVector2 m_BossZone;
     std::vector<IntVector2> m_LakeBossVisits;
     std::vector<WaterZonePopulation> m_WaterZones;
-    std::vector<WaterZonePopulation> m_DormantWaterZones;
+    std::vector<WaterZonePopulation> m_DormantWaterZones; // Unloaded sites still cooling down.
     size_t m_NextWaterZone = 0;
     std::chrono::steady_clock::time_point m_LastSwimTick = std::chrono::steady_clock::now();
     double m_SwimTime = 0;
@@ -110,10 +115,18 @@ class DivingEvent : public Event {
     // Fish logic
     void HandleFishTimer();
     void UpdateSwimming();
-    void ApplyAquaticHits(const std::vector<SpawnMoment *> &groups,
-                          const std::vector<cube::Creature *> &residents);
+    void SwimCreature(cube::World *world, const SpawnMoment &school, IdCreaturePair &pair,
+                      cube::Creature *creature, double dt, bool check, unsigned &plans);
     void SpawnFishes(const LongVector3 &position);
+    void RefreshWaterZones(const std::vector<IntVector2> &loaded);
+    bool ZoneHasLivingFish(const IntVector2 &zone);
+    bool ZoneOccupied(const IntVector2 &zone);
+    bool SpawnLakeEncounter(const NativeLakeLocation &lake, LongVector3 spawn, int total,
+                            unsigned int hash);
+    bool SpawnSchool(WaterZonePopulation &state, LongVector3 spawn, long long blockX,
+                     long long blockY, int total, unsigned int hash);
     void GetLocalEnemyProfile(const LongVector3 &position, IntVector2 *region, int *stars);
+    bool IsOwnSpawn(const cube::Creature *creature) const;
 
     // Treasure logic
     void HandleTreasureTimer();
