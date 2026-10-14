@@ -39,9 +39,9 @@ extern "C" void OnChestInteraction(cube::Game* game, cube::Creature* creature) {
 	{
 		return;
 	}
-	// Event chests only ever pay out through OverworldEvents. An untracked one
-	// (retired, orphaned or from an older session) is closed without loot.
-	if (overworldBridge::EventEntityId(static_cast<std::uint64_t>(creature->id)))
+	// Event chests only ever pay out through OverworldEvents. One it no longer
+	// tracks is closed without loot. Native chests are unaffected.
+	if (overworldBridge::SpawnedEventEntity(static_cast<std::uint64_t>(creature->id)))
 	{
 		CloseEventObject(game, creature);
 		return;
