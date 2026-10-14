@@ -17,12 +17,12 @@ std::uint64_t mix(std::uint64_t value) {
 }
 } // namespace
 
-bool overworldBridge::GenerateNativeEventLoot(const IntVector2 &region, std::uint64_t roll,
-                                              cube::Item &item) {
+bool overworldBridge::GenerateNativeEventLoot(cube::Creature *player, const IntVector2 &region,
+                                              std::uint64_t roll, cube::Item &item) {
     auto game = cube::GetGame();
-    auto player = game && game->world ? game->GetPlayer() : nullptr;
-    if (!player || !game->host.running || !generatorsAvailable())
+    if (!player || !game || !game->world || !game->host.running || !generatorsAvailable())
         return false;
+    // Generate for the creature that will receive the drop, never a stand-in.
     int recipient = player->entity_data.classType;
     if (recipient < 1 || recipient > 5)
         return false;

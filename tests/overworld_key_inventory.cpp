@@ -84,6 +84,14 @@ int main() {
         for (const auto &stack : tabs[(heldTab + 1) % 6])
             assert(stack.quantity == 3);
     }
+    // Only the bridge's reserved positive range counts as event-owned; native
+    // creatures and CubeMega's negative factory IDs never do.
+    using overworldBridge::EventEntityId;
+    assert(EventEntityId(overworldBridge::FirstEntityId) &&
+           EventEntityId(overworldBridge::EntityIdLimit - 1));
+    assert(!EventEntityId(overworldBridge::EntityIdLimit) &&
+           !EventEntityId(overworldBridge::FirstEntityId - 1));
+    assert(!EventEntityId(0) && !EventEntityId(1234) && !EventEntityId(std::uint64_t(-2ll)));
     puts(
         "Native key inventory mapping, all 20 key IDs, duplicate grants, exact encounter binding, and one-at-a-time consumption: PASS");
 }

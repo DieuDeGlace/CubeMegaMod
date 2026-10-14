@@ -52,11 +52,11 @@ bool HasId(const cube::World &world, std::uint64_t id) {
 std::uint64_t NewEntityId(cube::Game *game) {
     // Reserve positive IDs for these land actors instead of inheriting the
     // older factory's descending negative-ID convention.
-    static std::uint64_t next = 0x6000000000000000ull;
+    static std::uint64_t next = overworldBridge::FirstEntityId;
     for (unsigned attempt = 0; attempt < 4096; ++attempt) {
         auto id = next++;
-        if (next >= 0x7fffffffffffffffull)
-            next = 0x6000000000000000ull;
+        if (next >= overworldBridge::EntityIdLimit)
+            next = overworldBridge::FirstEntityId;
         if (!HasId(game->host.world, id) &&
             (game->world == &game->host.world || !HasId(*game->world, id)))
             return id;
@@ -102,8 +102,11 @@ bool overworldBridge::SupportsExaminationHook() {
 bool overworldBridge::CanExamine(cube::Creature *creature) {
     if (!creature)
         return false;
-    if (reinterpret_cast<NativeCanExamine>(CWOffset(0x5ee10))(creature))
-        return true;
+    auto id = static_cast<std::uint64_t>(creature->id);
+    // Event-range IDs never use the native chest predicate: an event chest that
+    // is no longer tracked (retired, orphaned) must not become an ordinary chest.
+    if (!EventEntityId(id))
+        return reinterpret_cast<NativeCanExamine>(CWOffset(0x5ee10))(creature);
     // Only event-owned noncombat examination objects may enter the chest path.
     // Its existing interaction bridge handles their reward/open state first.
     if (creature->entity_data.hostility_type !=
@@ -111,7 +114,7 @@ bool overworldBridge::CanExamine(cube::Creature *creature) {
         return false;
     static EntityOwnership callback = nullptr;
     auto function = Resolve(callback, "IsOverworldEventEntity");
-    return function && function(static_cast<std::uint64_t>(creature->id)) != 0;
+    return function && function(id) != 0;
 }
 
 void overworldBridge::CreatureDeath(cube::Game *game, cube::Creature *victim,
@@ -123,7 +126,7 @@ void overworldBridge::CreatureDeath(cube::Game *game, cube::Creature *victim,
 }
 
 EXPORT unsigned OverworldBridgeVersion() {
-    return 1;
+    return overworldBridge::Version;
 }
 
 EXPORT cube::Creature *SpawnOverworldEntity(const LongVector3 *position, const IntVector2 *region,
@@ -165,24 +168,27 @@ EXPORT cube::Creature *SpawnOverworldEntity(const LongVector3 *position, const I
     return creature;
 }
 
-EXPORT void DropOverworldReward(cube::Game *game, cube::Creature *recipient, const cube::Item *item,
-                                cube::Creature *source) {
+EXPORT int DropOverworldReward(cube::Game *game, cube::Creature *recipient, const cube::Item *item,
+                               cube::Creature *source) {
     if (!SupportedSteam() || !game || !game->world || !game->host.running || !recipient || !item)
-        return;
+        return 0;
+    // Checked again at delivery: the caller only claims a reward this accepts.
     if (!overworldBridge::loot::recipientGear(*item, recipient->entity_data.classType))
-        return;
+        return 0;
     auto reward = *item;
     auto position = recipient->entity_data.position;
     // Call the native entry, retaining PyroProgression's installed drop hook and
     // the defeated enemy source for its chance of higher-level gear.
     reinterpret_cast<Drop>(CWOffset(0x2a5b70))(&game->host.world, &reward, &position, 0.f, 0.f, 1,
                                                source, static_cast<std::uint64_t>(recipient->id));
+    return 1;
 }
 
-EXPORT int GenerateOverworldGear(const IntVector2 *region, std::uint64_t roll, cube::Item *out) {
-    if (!SupportedSteam() || !region || !out)
+EXPORT int GenerateOverworldGear(cube::Creature *recipient, const IntVector2 *region,
+                                 std::uint64_t roll, cube::Item *out) {
+    if (!SupportedSteam() || !recipient || !region || !out)
         return 0;
-    return overworldBridge::GenerateNativeEventLoot(*region, roll, *out) ? 1 : 0;
+    return overworldBridge::GenerateNativeEventLoot(recipient, *region, roll, *out) ? 1 : 0;
 }
 
 EXPORT int GrantOverworldKey(cube::Game *game, cube::Creature *recipient, const cube::Item *key) {

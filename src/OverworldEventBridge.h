@@ -41,6 +41,15 @@ inline bool Consume(Tabs &tabs, const cube::Item &key) {
     return false;
 }
 } // namespace inventory
+// Bridge version 2: gear generation takes the recipient, and reward delivery
+// reports whether the item passed validation and reached the native drop.
+constexpr unsigned Version = 2;
+// SpawnOverworldEntity assigns IDs only from this reserved positive range.
+constexpr std::uint64_t FirstEntityId = 0x6000000000000000ull;
+constexpr std::uint64_t EntityIdLimit = 0x7fffffffffffffffull;
+inline bool EventEntityId(std::uint64_t id) {
+    return id >= FirstEntityId && id < EntityIdLimit;
+}
 // A handled interaction belongs entirely to OverworldEvents, including whether
 // the object opens. CubeMega must not grant its ordinary chest reward afterward.
 bool Talk(cube::Game *game, cube::Creature *creature);
@@ -54,9 +63,11 @@ void CreatureDeath(cube::Game *game, cube::Creature *victim, cube::Creature *att
 EXPORT unsigned OverworldBridgeVersion();
 EXPORT cube::Creature *SpawnOverworldEntity(const LongVector3 *position, const IntVector2 *region,
                                             int race, int behaviour, int stars);
-EXPORT void DropOverworldReward(cube::Game *game, cube::Creature *recipient, const cube::Item *item,
-                                cube::Creature *source);
-EXPORT int GenerateOverworldGear(const IntVector2 *region, std::uint64_t roll, cube::Item *out);
+// Returns 1 only when the item is valid for the recipient's class and was dropped.
+EXPORT int DropOverworldReward(cube::Game *game, cube::Creature *recipient, const cube::Item *item,
+                               cube::Creature *source);
+EXPORT int GenerateOverworldGear(cube::Creature *recipient, const IntVector2 *region,
+                                 std::uint64_t roll, cube::Item *out);
 EXPORT int GrantOverworldKey(cube::Game *game, cube::Creature *recipient, const cube::Item *key);
 EXPORT int ConsumeOverworldKey(cube::Game *game, cube::Creature *recipient, const cube::Item *key);
 EXPORT void OverworldDialogue(cube::Game *game, cube::Creature *speaker, const wchar_t *text);
