@@ -1,4 +1,7 @@
 #include "QuestMod.h"
+#include "QuestDialogue.h"
+#include "../../NativeEventDialogue.h"
+#include <random>
 
 #include "hooks/ChangeQuestItemName.h"
 #include "hooks/ChangeQuestDescription.h"
@@ -112,5 +115,15 @@ int QuestMod::OnCreatureTalk(cube::Game* game, cube::Creature* creature)
 	cube::Creature* player = cube::GetGame()->GetPlayer();
 	cube::Helper::DropItem(player, item, 1);
 
-	return 0;
+	// Hand the bounty over with one of five lines about this quest (creature,
+	// count and reward) instead of the villager's generic native line.
+	static std::mt19937_64 random{std::random_device{}()};
+	static std::size_t previous = questDialogue::Lines;
+	cube::Quest* quest = (cube::Quest*)&item;
+	std::wstring race;
+	game->speech.GetRaceName(&race, quest->GetSubType());
+	std::wstring text = questDialogue::fill(
+		questDialogue::offers[questDialogue::pick(random(), previous)], race, quest->GetTarget(),
+		quest->GetReward().amount);
+	return overworldBridge::ShowNativeEventDialogue(game, creature, text.c_str()) ? 1 : 0;
 }

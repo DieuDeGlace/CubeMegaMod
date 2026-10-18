@@ -5,9 +5,14 @@
 #include "../CubeMod.h"
 #include "../cwsdk-extension.h"
 #include "../hooks.h"
+#include "../OverworldEventBridge.h"
 
 extern "C" int OnTalkToCreature(cube::Game * game, cube::Creature * creature)
 {
+	if (overworldBridge::Talk(game, creature))
+	{
+		return 1;
+	}
 	for (CubeMod* mod : g_Mods)
 	{
 		if (mod->OnCreatureTalk(game, creature))
