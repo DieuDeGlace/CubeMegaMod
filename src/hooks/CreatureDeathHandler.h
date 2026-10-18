@@ -2,13 +2,16 @@
 * Hook for creature on death.
 */
 #include "../hooks.h"
+#include "../OverworldEventBridge.h"
 #include <string>
 
 extern "C" void OnCreatureDeath(cube::Creature * creature, cube::Creature * attacker) {
+	auto game = cube::GetGame();
 	if (attacker == nullptr)
 	{
-		attacker = cube::GetGame()->GetPlayer();
+		attacker = game->GetPlayer();
 	}
+	overworldBridge::CreatureDeath(game, creature, attacker);
 	for (CubeMod* mod : g_Mods) {
 		mod->OnCreatureDeath(creature, attacker);
 	}
