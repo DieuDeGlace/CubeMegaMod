@@ -64,6 +64,7 @@ struct WaterZonePopulation {
     time_t emptySince = 0;  // When its population was last seen gone (0 = not empty).
     bool hasAnchor = false; // anchor: the validated school site, reused on respawn.
     LongVector3 anchor;
+    bool openOcean = false; // The anchor is in deep ocean water (species/depth rules).
     time_t next_spawn = 0;
     bool boss_attempted = false;
 };

@@ -773,13 +773,13 @@ void cube::DivingEvent::SpawnFishes(const LongVector3 &position) {
         bool ocean = OceanSite(world, spawn);
         if (!WaterSiteEligible(state.zone.x, state.zone.y, world->seed, ocean))
             continue;
-        // Keep groups apart: 96 blocks at sea, 128 inland.
+        // Keep groups apart: 64 blocks at sea, 128 inland.
         bool crowded = false;
         for (auto &existing : m_SpawnedCreatures)
             if (!existing.creature_ids.empty() &&
                 WaterWithinRadius(pydiv(existing.position.x, cube::DOTS_PER_BLOCK),
                                   pydiv(existing.position.y, cube::DOTS_PER_BLOCK), blockX, blockY,
-                                  ocean ? 96 : 128)) {
+                                  WaterSchoolSpacing(ocean))) {
                 crowded = true;
                 break;
             }
@@ -881,11 +881,17 @@ bool cube::DivingEvent::SpawnSchool(WaterZonePopulation &state, LongVector3 spaw
                            cube::Block::Water;
             }))
             return false;
-        // Sink 2-4 blocks below the surface if that is still water.
-        long long depth = 2 + (hash % 3);
-        if (NativeWaterBlock(world, LongVector3(blockX, blockY, height - depth)).type ==
-            cube::Block::Water)
-            height -= depth;
+        // Water column below the surface (bounded); open ocean needs depth, so a
+        // river inside an ocean region keeps inland species.
+        long long column = 0;
+        while (column < 128 &&
+               NativeWaterBlock(world, LongVector3(blockX, blockY, height - column - 1)).type ==
+                   cube::Block::Water)
+            ++column;
+        state.openOcean = OceanWater(OceanSite(world, spawn), column + 1);
+        // Inland and half the ocean schools swim near the surface; the rest of
+        // the ocean schools spread down through the column.
+        height -= WaterSchoolDepth(hash, column + 1, state.openOcean);
         spawn.z = height * cube::DOTS_PER_BLOCK + cube::DOTS_PER_BLOCK / 2;
         state.anchor = spawn;
         state.hasAnchor = true;
@@ -927,8 +933,7 @@ bool cube::DivingEvent::SpawnSchool(WaterZonePopulation &state, LongVector3 spaw
     }
     if (positions.size() < 2)
         return false;
-    int species = WaterSiteSpecies(
-        hash, OceanSite(world, spawn)); // Factory index, chosen once for the whole group.
+    int species = WaterSiteSpecies(hash, state.openOcean); // Factory index, once per group.
     SpawnMoment school;
     school.position = spawn;
     for (const auto &member : positions) {
@@ -939,7 +944,9 @@ bool cube::DivingEvent::SpawnSchool(WaterZonePopulation &state, LongVector3 spaw
     if (school.creature_ids.empty())
         return false;
     m_SpawnedCreatures.push_back(std::move(school));
-    AquaticLog("Spawned school: factory species=%d members=%zu near chunk=(%d,%d)\n", species,
+    AquaticLog("Spawned school: factory species=%d %s z=%lld members=%zu near chunk=(%d,%d)\n",
+               species, state.openOcean ? "ocean" : "inland",
+               (long long)pydiv(spawn.z, cube::DOTS_PER_BLOCK),
                m_SpawnedCreatures.back().creature_ids.size(), state.zone.x, state.zone.y);
     return true;
 }
@@ -1062,8 +1069,10 @@ void cube::DivingEvent::SpawnBoss(const LongVector3 &position) {
         IntVector2 region;
         int stars;
         GetLocalEnemyProfile(spawn, &region, &stars);
+        // Sea-crab bosses only in open ocean (deep water), never a river in an
+        // ocean region: the chunk's anchored school already decided that.
         auto boss = cube::CreatureFactory::SpawnBoss(spawn, region, stars, -1,
-                                                     OceanSite(game->world, spawn));
+                                                     state->hasAnchor && state->openOcean);
         if (!boss)
             return;
         m_BossZone = zone;

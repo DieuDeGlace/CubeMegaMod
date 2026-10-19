@@ -24,21 +24,22 @@ int main() {
     assert(
         FindWaterSpawnHeight(0, &z, [](long long height) { return height >= 6 && height <= 9; }) &&
         z == 6);
-    assert(WaterPopulationCanSpawn(16, 0, 120, 120));
-    assert(!WaterPopulationCanSpawn(18, 0, 120, 120));
+    assert(WaterPopulationCanSpawn(WaterPopulationCap - 2, 0, 120, 120));
+    assert(!WaterPopulationCanSpawn(WaterPopulationCap, 0, 120, 120));
     assert(!WaterPopulationCanSpawn(0, 2, 120, 120));
     assert(!WaterPopulationCanSpawn(0, 0, 119, 120));
     assert(WaterPopulationCanSpawn(0, 0, 120, 120));
     assert(!WaterPopulationCanSpawn(0, 1, 120,
                                     120)); // Do not mix a new school into an occupied chunk.
-    assert(!WaterPopulationCanSpawn(17, 0, 120, 120)); // No lone spawn at the cap boundary.
+    assert(!WaterPopulationCanSpawn(WaterPopulationCap - 1, 0, 120, 120)); // No lone spawn at the cap boundary.
     assert(WaterSchoolSize(0, 0) == 2 && WaterSchoolSize(0, 1) == 3);
-    assert(WaterSchoolSize(16, 1) == 2 && WaterSchoolSize(17, 0) == 0);
-    for (int total = 0; total <= 18; ++total)
+    assert(WaterSchoolSize(WaterPopulationCap - 2, 1) == 2 &&
+           WaterSchoolSize(WaterPopulationCap - 1, 0) == 0);
+    for (int total = 0; total <= WaterPopulationCap; ++total)
         for (unsigned int roll = 0; roll < 20; ++roll) {
             int count = WaterSchoolSize(total, roll);
             assert(count == 0 || (count >= 2 && count <= 3));
-            assert(total + count <= 18);
+            assert(total + count <= WaterPopulationCap);
         }
     assert(WaterPopulationHash(-2, 3, 42, 0) == WaterPopulationHash(-2, 3, 42, 0));
     assert(WaterPopulationHash(-2, 3, 42, 0) != WaterPopulationHash(-2, 3, 42, 1));
@@ -86,8 +87,9 @@ int main() {
     assert(!WaterSiteCanRepopulate(99, 100));
     for (unsigned h = 0; h < 1000; h++) {
         int i = WaterSiteSpecies(h, false);
-        assert(i != 0 && i != 1 && i != 5 && i != 6);
-        assert(WaterSiteSpecies(h, true) != 5);
+        assert(i != 1 && i != 5 && i != 6); // no sea crab, polar gnoll or mermaid inland
+        int o = WaterSiteSpecies(h, true);
+        assert(o != 0 && o != 5); // no normal crab or polar gnoll at sea
     }
     int inlandSites = 0, seaSites = 0;
     for (int x = -30; x < 30; x++)
@@ -95,12 +97,35 @@ int main() {
             inlandSites += WaterSiteEligible(x, y, 42, false);
             seaSites += WaterSiteEligible(x, y, 42, true);
         }
-    assert(inlandSites == 1200 && seaSites == 1800);
+    assert(inlandSites == 1200 && seaSites == 3600);
+    assert(WaterSchoolSpacing(true) < WaterSchoolSpacing(false));
+    // Normal crabs appear inland and sea crabs/mermaids at sea.
+    bool inlandCrab = false, seaCrab = false, mermaid = false;
+    for (unsigned h = 0; h < 4096; h += 256) {
+        inlandCrab |= WaterSiteSpecies(h, false) == 0;
+        seaCrab |= WaterSiteSpecies(h, true) == 1;
+        mermaid |= WaterSiteSpecies(h, true) == 6;
+    }
+    assert(inlandCrab && seaCrab && mermaid);
+    // Open ocean needs depth; a river in an ocean region stays inland.
+    assert(OceanWater(true, 6) && !OceanWater(true, 3) && !OceanWater(false, 40));
+    // Depths stay inside the water column; deep ocean schools spread lower.
+    int deep = 0;
+    for (unsigned h = 0; h < 2000; h++) {
+        for (long long column : {1LL, 3LL, 6LL, 12LL, 40LL}) {
+            long long d = WaterSchoolDepth(h, column, true);
+            assert(d >= 0 && (column <= 1 || d <= column - 1));
+            long long inland = WaterSchoolDepth(h, column, false);
+            assert(inland >= 0 && inland <= 4 && (column <= 1 || inland <= column - 1));
+        }
+        deep += WaterSchoolDepth(h, 40, true) >= 10;
+    }
+    assert(deep > 800 && deep < 1200); // about half of the deep-ocean schools
     int successes = 0;
     for (unsigned int roll = 0; roll < 100; ++roll)
         successes += WaterBossRoll(roll);
     assert(successes == 25);
-    int tracked = 18;
+    int tracked = WaterPopulationCap;
     for (int tick = 0; tick < 1000; ++tick) {
         // Missing map/death/unload cannot free slots while the entities remain resident.
         assert(WaterEntityLifecycle(true, false, false, false, true) != WaterEntityAction::Forget);

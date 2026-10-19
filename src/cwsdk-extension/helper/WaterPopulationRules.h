@@ -3,7 +3,7 @@
 // deterministic per-chunk spawn sites, and entity lifecycle decisions.
 // Distances are in blocks. Tested by tests/aquatic_rules.cpp.
 #include <cstdint>
-constexpr int WaterPopulationCap = 18; // Tracked fish in total.
+constexpr int WaterPopulationCap = 24; // Tracked fish in total (the ocean holds most).
 constexpr int WaterSchoolMax = 3;      // Fish per school.
 constexpr int WaterSpawnRadius = 192;  // Chunks within this of the player are populated.
 constexpr int WaterRetireRadius = 256; // Bosses beyond this are retired.
@@ -76,16 +76,42 @@ inline bool WaterSiteCanRepopulate(long long now, long long emptySince) {
     return emptySince > 0 && now >= emptySince && now - emptySince >= WaterSiteRespawnDelay;
 }
 
-// Factory fish species for a site; some species are ocean-only.
+// Factory fish species for a site (CreatureFactory::SpawnFish index). Sea crabs
+// (1) and mermaids (6) live only in the ocean, normal crabs (0) only in rivers
+// and lakes; polar gnoll (5) never spawns.
 inline int WaterSiteSpecies(unsigned int hash, bool ocean) {
-    constexpr int sea[] = {0, 1, 2, 3, 4, 6, 7, 8, 9, 10, 11, 12};
-    constexpr int inland[] = {2, 3, 4, 7, 8, 9, 10, 11, 12};
-    return ocean ? sea[(hash >> 8) % 12] : inland[(hash >> 8) % 9];
+    constexpr int sea[] = {1, 2, 3, 4, 6, 7, 8, 9, 10, 11, 12};
+    constexpr int inland[] = {0, 2, 3, 4, 7, 8, 9, 10, 11, 12};
+    return ocean ? sea[(hash >> 8) % 11] : inland[(hash >> 8) % 10];
 }
 
-// Only every second (ocean) or third (inland) chunk hosts a school.
+// Every ocean chunk may host a school, only every third inland chunk.
 inline bool WaterSiteEligible(int x, int y, int seed, bool ocean) {
+    if (ocean)
+        return true;
     long long n = (long long)x + y + seed;
-    int period = ocean ? 2 : 3;
-    return (n % period + period) % period == 0;
+    return (n % 3 + 3) % 3 == 0;
+}
+// Minimum horizontal distance between schools, in blocks.
+inline int WaterSchoolSpacing(bool ocean) {
+    return ocean ? 64 : 128;
+}
+
+// Open ocean: the ocean biome and water at least this deep. Rivers and coastal
+// shallows inside an ocean region count as inland water.
+constexpr long long OceanMinimumDepth = 6;
+inline bool OceanWater(bool oceanBiome, long long columnDepth) {
+    return oceanBiome && columnDepth >= OceanMinimumDepth;
+}
+// Blocks below the surface a school is anchored at. Inland and half of the
+// ocean schools swim 2-4 blocks down; the other ocean half spreads from a
+// quarter of the column down to two blocks above the floor.
+inline long long WaterSchoolDepth(unsigned int hash, long long columnDepth, bool ocean) {
+    long long shallow = 2 + hash % 3;
+    if (!ocean || columnDepth < 8 || (hash >> 4) % 2 == 0)
+        return shallow < columnDepth - 1 ? shallow : (columnDepth > 1 ? columnDepth - 1 : 0);
+    long long top = columnDepth / 4, bottom = columnDepth - 2;
+    if (bottom <= top)
+        return top;
+    return top + (long long)((hash >> 12) % (unsigned)(bottom - top + 1));
 }
