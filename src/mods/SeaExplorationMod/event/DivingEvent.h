@@ -43,6 +43,9 @@ struct IdCreaturePair {
     SwimPoint waterRecoveryTarget;
     bool hasMotionSample = false;
     SwimPoint lastMotionPosition; // Position (blocks) at the previous update.
+    // Native integration of the velocity reported for the walk animation may
+    // move the actor this far past lastMotionPosition; that is not native travel.
+    SwimPoint lastMotionDrift;
     unsigned int swimAttempt = 0;
     double nextSwimPlan = 0;
     int lastAbility = 0;
