@@ -59,6 +59,15 @@ int main() {
         {0, 0, 50}, &recovered, [](SwimPoint) { return true; },
         [](SwimPoint p) { return p.z <= 1; }));
 
+    // Velocity drive: the game's drag is expected, a turn or speed-up is native AI.
+    auto motion = SwimMotion({0, 0, 0}, {.03, -.04, .01}, .02);
+    assert(std::abs(motion.x - 1.5) < 1e-9 && std::abs(motion.y + 2) < 1e-9);
+    assert(!NativeTookOver({1.5, .01, 0}, {1.318, .01, 0}));   // logged drag
+    assert(!NativeTookOver({.42, 1.44, 0}, {.366, 1.266, 0})); // logged drag
+    assert(NativeTookOver({1.5, 0, 0}, {0, 1.4, 0}));          // turned toward a target
+    assert(NativeTookOver({1.5, 0, 0}, {3, 0, 0}));            // charging faster
+    assert(NativeTookOver({1.5, 0, 0}, {0, 0, 0}));            // stopped by the AI
+    assert(!NativeTookOver({0, 0, 0}, {.01, 0, 0}) && NativeTookOver({0, 0, 0}, {1, 0, 0}));
     // Passive fish (2) and hostile predators (1) oppose each other; allies do not.
     assert(AquaticOpposed(1, false, 2, false) && AquaticOpposed(2, false, 1, false));
     assert(!AquaticOpposed(1, false, 1, false) && !AquaticOpposed(2, false, 2, false));

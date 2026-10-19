@@ -43,6 +43,10 @@ struct IdCreaturePair {
     SwimPoint waterRecoveryTarget;
     bool hasMotionSample = false;
     SwimPoint lastMotionPosition; // Position (blocks) at the previous update.
+    // The controller drives this actor by velocity (as native AI does), so the
+    // walk/swim animation plays; drivenVelocity is what it last reported.
+    bool driving = false;
+    SwimPoint drivenVelocity;
     unsigned int swimAttempt = 0;
     double nextSwimPlan = 0;
     int lastAbility = 0;
