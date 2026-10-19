@@ -41,7 +41,7 @@ int main() {
     assert(!SwimPathClear(a, b, [&](SwimPoint p) { return std::abs(p.x - (a.x + 4)) > .3; }));
     assert(!SwimPathClear(a, {a.x + 30, a.y, a.z}, [](SwimPoint) { return true; }));
     assert(!SwimPathClear(a, b, [&](SwimPoint p) { return p.z < 26; }));
-    assert(WaterPopulationCap == 18 && WaterSchoolMax == 3);
+    assert(WaterPopulationCap == 24 && WaterSchoolMax == 3);
     assert(WaterWithinRadius(-1000000, -1000000, -1000000, -1000000, 192));
     assert(!WaterWithinRadius(-999000, -1000000, -1000000, -1000000, 192));
     assert(WaterWithinRadius(192, 0, 0, 0, 192) && !WaterWithinRadius(193, 0, 0, 0, 192));
