@@ -42,12 +42,6 @@ inline SwimPoint SwimStep(SwimPoint a, SwimPoint b, double seconds, double speed
     double t = (std::min)(1., SwimClamp(seconds, 0., .1) * speed / distance);
     return SwimLerp(a, b, t);
 }
-// Velocity (blocks/second) of a step from a to b taking `seconds`; zero for no time.
-inline SwimPoint SwimMotion(SwimPoint a, SwimPoint b, double seconds) {
-    if (!(seconds > 0))
-        return {};
-    return {(b.x - a.x) / seconds, (b.y - a.y) / seconds, (b.z - a.z) / seconds};
-}
 // True if every half-block sample on the segment a..b (at most 24 blocks) is wet.
 template <class Wet> bool SwimPathClear(SwimPoint a, SwimPoint b, Wet wet) {
     double distance = SwimDistance(a, b);
