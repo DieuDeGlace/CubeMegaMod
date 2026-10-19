@@ -42,6 +42,25 @@ inline SwimPoint SwimStep(SwimPoint a, SwimPoint b, double seconds, double speed
     double t = (std::min)(1., SwimClamp(seconds, 0., .1) * speed / distance);
     return SwimLerp(a, b, t);
 }
+// Velocity (blocks/second) of a step from a to b taking `seconds`; zero for no time.
+inline SwimPoint SwimMotion(SwimPoint a, SwimPoint b, double seconds) {
+    if (!(seconds > 0))
+        return {};
+    return {(b.x - a.x) / seconds, (b.y - a.y) / seconds, (b.z - a.z) / seconds};
+}
+// Roaming actors are moved like native AI moves them: by velocity, which the
+// game integrates (blocks/s) with a little drag (about 12% per update in game
+// logs) and which drives the walk animation. Native AI has taken the actor
+// over when the horizontal velocity the game left is no longer the reported
+// one scaled down by that drag: turned, or faster.
+inline bool NativeTookOver(SwimPoint reported, SwimPoint left) {
+    double rr = reported.x * reported.x + reported.y * reported.y;
+    if (rr < 1e-8)
+        return std::hypot(left.x, left.y) > .05;
+    double along = (left.x * reported.x + left.y * reported.y) / rr;
+    double px = left.x - along * reported.x, py = left.y - along * reported.y;
+    return along < .5 || along > 1.05 || std::hypot(px, py) > .25 * std::sqrt(rr) + .02;
+}
 // True if every half-block sample on the segment a..b (at most 24 blocks) is wet.
 template <class Wet> bool SwimPathClear(SwimPoint a, SwimPoint b, Wet wet) {
     double distance = SwimDistance(a, b);
