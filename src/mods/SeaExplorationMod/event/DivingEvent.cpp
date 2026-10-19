@@ -411,16 +411,9 @@ void cube::DivingEvent::SwimCreature(cube::World *world, const SpawnMoment &scho
     auto wet = [&](SwimPoint p) { return SwimWater(world, p); };
     auto &e = creature->entity_data;
     auto current = ToSwimPoint(e.position);
-    // Native travel: away from where the controller left the actor, allowing for
-    // one step of the velocity it reported (for the walk animation).
-    auto offBy = [&](SwimPoint p) { return std::hypot(current.x - p.x, current.y - p.y) > .02; };
-    SwimPoint drifted{pair.lastMotionPosition.x + pair.lastMotionDrift.x,
-                      pair.lastMotionPosition.y + pair.lastMotionDrift.y,
-                      pair.lastMotionPosition.z + pair.lastMotionDrift.z};
-    bool nativeMoving = pair.hasMotionSample && offBy(pair.lastMotionPosition) && offBy(drifted);
-    bool reportedMotion = pair.lastMotionDrift.x != 0 || pair.lastMotionDrift.y != 0 ||
-                          pair.lastMotionDrift.z != 0;
-    pair.lastMotionDrift = {};
+    bool nativeMoving =
+        pair.hasMotionSample && std::hypot(current.x - pair.lastMotionPosition.x,
+                                           current.y - pair.lastMotionPosition.y) > .02;
     bool combat = e.current_ability != 0 || e.stun_time > 0;
     // Native idle vertical updates can push terrain-shifted aquatic actors
     // onto the water surface. Keep the controller's previous depth only during
@@ -485,15 +478,8 @@ void cube::DivingEvent::SwimCreature(cube::World *world, const SpawnMoment &scho
         pair.nextSwimPlan = m_SwimTime + 2;
         PlanSwimTarget(world, ToSwimPoint(school.position), current, e.yaw, pair);
     }
-    if (!pair.swimming) {
-        // A leg just ended: clear the motion it reported so the walk animation
-        // stops. Only then, so native AI starting to move the actor is never undone.
-        if (reportedMotion) {
-            e.velocity = FloatVector3(0, 0, 0);
-            e.acceleration = FloatVector3(0, 0, 0);
-        }
+    if (!pair.swimming)
         return;
-    }
 
     // Turn toward the target (at most 100 degrees/s), then swim forward.
     double wanted = SwimFacingYaw(current, pair.swimTarget);
@@ -504,15 +490,6 @@ void cube::DivingEvent::SwimCreature(cube::World *world, const SpawnMoment &scho
     auto next = SwimStep(current, pair.swimTarget, dt,
                          (AquaticPassive(e.race) ? 1.1 : 1.5) * SwimForwardAmount(remaining));
     pair.lastMotionPosition = next;
-    // The native walk/swim animation follows the actor's velocity and
-    // acceleration, as when the AI chases a target; position-only steps left it
-    // idle (sliding). The controller's position stays authoritative; this step's
-    // motion is reported too, and one step of native integration of it is
-    // expected (not mistaken for native travel next update).
-    auto motion = SwimMotion(current, next, dt);
-    e.velocity = FloatVector3((float)motion.x, (float)motion.y, (float)motion.z);
-    e.acceleration = e.velocity;
-    pair.lastMotionDrift = {motion.x * dt, motion.y * dt, motion.z * dt};
     e.position = ToDots(next);
 }
 

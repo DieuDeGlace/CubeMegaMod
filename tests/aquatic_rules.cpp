@@ -59,12 +59,6 @@ int main() {
         {0, 0, 50}, &recovered, [](SwimPoint) { return true; },
         [](SwimPoint p) { return p.z <= 1; }));
 
-    // Reported swim motion (blocks/s) matches the step; no time, no motion.
-    auto motion = SwimMotion({0, 0, 0}, {.03, -.04, .01}, .02);
-    assert(std::abs(motion.x - 1.5) < 1e-9 && std::abs(motion.y + 2) < 1e-9 &&
-           std::abs(motion.z - .5) < 1e-9);
-    auto still = SwimMotion({0, 0, 0}, {1, 1, 1}, 0);
-    assert(still.x == 0 && still.y == 0 && still.z == 0);
     // Passive fish (2) and hostile predators (1) oppose each other; allies do not.
     assert(AquaticOpposed(1, false, 2, false) && AquaticOpposed(2, false, 1, false));
     assert(!AquaticOpposed(1, false, 1, false) && !AquaticOpposed(2, false, 2, false));
