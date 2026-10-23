@@ -239,9 +239,11 @@ EXPORT void OverworldDialogue(cube::Game *game, cube::Creature *speaker, const w
     // Command/status feedback belongs to chat; event speakers use the normal
     // world-space speech widget that is anchored to their native entity ID.
     if (speaker != game->GetPlayer()) {
-        if (!overworldBridge::ShowNativeEventDialogue(game, speaker, text))
-            OutputDebugStringA("OverworldEvents: native speaker dialogue was unavailable.\n");
-        return;
+        if (overworldBridge::ShowNativeEventDialogue(game, speaker, text))
+            return;
+        // Keep the accepted objective readable if a different UI hook prevents
+        // the native speech widget from opening. Never lose the quest silently.
+        OutputDebugStringA("OverworldEvents: using chat because native speech was unavailable.\n");
     }
     if (!game->gui.chat_widget)
         return;

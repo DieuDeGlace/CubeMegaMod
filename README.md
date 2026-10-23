@@ -263,3 +263,7 @@ Fish idle roaming now uses 8–16-block water-checked paths within a 32-block ho
 Aquatic boss roaming now uses the same bounded forward-swimming fallback as ordinary aquatic schools, with persistent home/roaming state. Ground lake crab/spitter/slime bosses retain native ground AI. Small vertical bobbing no longer counts as active horizontal roaming; actual native horizontal travel, attacks and stun still take precedence. Live shark/boss verification remains necessary.
 
 Live idle-depth correction: audit found sharks with zero horizontal velocity, no active attack and repeated vertical motion above detected water. Idle swimming/recovery now retains the previous controlled depth and clears idle vertical velocity/acceleration, yielding to native horizontal travel and combat. This is scoped to tracked water creatures and needs a restarted live test; it does not rewrite general native physics.
+
+### Quest dialogue compatibility (October 23, 2026)
+
+Overworld event dialogue still opens the native NPC speech widget. If it cannot be created, the bridge displays the accepted objective in chat so the interaction cannot silently lose its instructions. Native talk routing, quest rewards and the current aquatic updates are retained.
